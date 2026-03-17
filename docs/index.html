@@ -52,6 +52,7 @@
               <li>Example register maps stay outside the framework header.</li>
               <li>Host checks validate API shape and compile-fail misuse cases.</li>
               <li>QEMU runtime tests execute register code at real target addresses.</li>
+              <li>Bound register instances stay the direct-MMIO path, and shadow registers stay plain local values for staged updates.</li>
               <li>Cortex-R5 runs under the same Windows-first preset flow as the other test paths.</li>
             </ul>
           </article>

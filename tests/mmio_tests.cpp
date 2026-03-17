@@ -1,4 +1,16 @@
+#include <cstddef>
+#include <cstdint>
 #include <type_traits>
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#ifdef ERROR
+#undef ERROR
+#endif
+#endif
 
 #include "access_example_registers.hpp"
 #include "spi_example_registers.hpp"
@@ -80,6 +92,56 @@ void i2sRxComplete(void*) {}
 void i2sTransferComplete(void*) {}
 void i2sErrorCallback(void*, stm32f429::drivers::I2sError) {}
 
+#if defined(_WIN32)
+constexpr std::uintptr_t kHostMmioBaseAddress = 0x4D4D0000u;
+constexpr std::size_t kHostMmioWindowSize = 0x1000u;
+constexpr std::uintptr_t kHostSpiCrAddress = kHostMmioBaseAddress + 0x00u;
+constexpr std::uintptr_t kHostSpiMrAddress = kHostMmioBaseAddress + 0x04u;
+constexpr std::uintptr_t kHostSpiSrAddress = kHostMmioBaseAddress + 0x08u;
+constexpr std::uintptr_t kHostAccessStatusAddress = kHostMmioBaseAddress + 0x0Cu;
+constexpr std::uintptr_t kHostAccessCommandAddress = kHostMmioBaseAddress + 0x10u;
+constexpr std::uintptr_t kHostAccessLatchAddress = kHostMmioBaseAddress + 0x14u;
+constexpr std::uintptr_t kHostAccessZeroAddress = kHostMmioBaseAddress + 0x18u;
+
+constexpr std::uint32_t bit(unsigned offset) noexcept {
+  return static_cast<std::uint32_t>(1u << offset);
+}
+
+constexpr std::uint32_t encode(unsigned offset, std::uint32_t value) noexcept {
+  return static_cast<std::uint32_t>(value << offset);
+}
+
+class ScopedHostMmioWindow {
+ public:
+  ScopedHostMmioWindow() {
+    base_ = ::VirtualAlloc(reinterpret_cast<void*>(kHostMmioBaseAddress),
+                           static_cast<SIZE_T>(kHostMmioWindowSize),
+                           MEM_RESERVE | MEM_COMMIT,
+                           PAGE_READWRITE);
+    if (base_ != reinterpret_cast<void*>(kHostMmioBaseAddress)) {
+      if (base_ != nullptr) {
+        ::VirtualFree(base_, 0, MEM_RELEASE);
+      }
+      base_ = nullptr;
+    }
+  }
+
+  ~ScopedHostMmioWindow() {
+    if (base_ != nullptr) {
+      ::VirtualFree(base_, 0, MEM_RELEASE);
+    }
+  }
+
+  ScopedHostMmioWindow(const ScopedHostMmioWindow&) = delete;
+  ScopedHostMmioWindow& operator=(const ScopedHostMmioWindow&) = delete;
+
+  bool mapped() const { return base_ != nullptr; }
+
+ private:
+  void* base_ = nullptr;
+};
+#endif
+
 // These functions are intentionally never executed on the host. They exist to
 // compile-check the positive API surface without dereferencing MMIO addresses in
 // a desktop process. Runtime behavior is covered by the QEMU target tests.
@@ -87,8 +149,8 @@ void compileCheckedExamples() {
   SPI_CR::Instance<0x1000u> spiCr;
   SPI_MR::Instance<0x1004u> spiMr;
   SPI_SR::Instance<0x1008u> spiSr;
-  SPI_CR spiCrLocal;
-  SPI_MR spiMrLocal;
+  SPI_CR spiCrShadow;
+  SPI_MR spiMrShadow;
 
   const auto controlFlags = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET | SPI_CR::CMD::value(2);
   const auto modeConfig = SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(5);
@@ -118,22 +180,22 @@ void compileCheckedExamples() {
   const SPI_CR spiCrCopy = spiCr;
   const SPI_MR spiMrCopy = spiMr;
 
-  spiCrLocal = spiCr;
-  spiCrLocal |= SPI_CR::SPIEN::ENABLE;
-  spiCrLocal &= ~SPI_CR::SWRST::MASK;
-  spiCrLocal ^= SPI_CR::SWRST::MASK;
-  spiCrLocal.set<SPI_CR::CMD>(1);
+  spiCrShadow = spiCr;
+  spiCrShadow |= SPI_CR::SPIEN::ENABLE;
+  spiCrShadow &= ~SPI_CR::SWRST::MASK;
+  spiCrShadow ^= SPI_CR::SWRST::MASK;
+  spiCrShadow.set<SPI_CR::CMD>(1);
 
-  spiMrLocal = spiMr;
-  spiMrLocal.set(SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(4));
-  spiMrLocal.set<SPI_MR::PCS>(3);
+  spiMrShadow = spiMr;
+  spiMrShadow.set(SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(4));
+  spiMrShadow.set<SPI_MR::PCS>(3);
 
-  const auto localCommand = spiCrLocal.get<SPI_CR::CMD>();
-  const auto localPcs = spiMrLocal.get<SPI_MR::PCS>();
-  const bool localEnabled = (spiCrLocal & SPI_CR::SPIEN::ENABLE);
+  const auto shadowCommand = spiCrShadow.get<SPI_CR::CMD>();
+  const auto shadowPcs = spiMrShadow.get<SPI_MR::PCS>();
+  const bool shadowEnabled = (spiCrShadow & SPI_CR::SPIEN::ENABLE);
 
-  spiCr = spiCrLocal;
-  spiMr = spiMrLocal;
+  spiCr = spiCrShadow;
+  spiMr = spiMrShadow;
   (void)command;
   (void)delay;
   (void)isMaster;
@@ -144,9 +206,9 @@ void compileCheckedExamples() {
   (void)spiCrFromValue;
   (void)spiCrCopy;
   (void)spiMrCopy;
-  (void)localCommand;
-  (void)localPcs;
-  (void)localEnabled;
+  (void)shadowCommand;
+  (void)shadowPcs;
+  (void)shadowEnabled;
 }
 
 void compileCheckedAccessExamples() {
@@ -154,10 +216,10 @@ void compileCheckedAccessExamples() {
   ACCESS_COMMAND::Instance<0x1014u> accessCommand;
   ACCESS_LATCH::Instance<0x1018u> accessLatch;
   ACCESS_ZERO::Instance<0x101Cu> accessZero;
-  ACCESS_STATUS accessStatusLocal;
-  ACCESS_COMMAND accessCommandLocal;
-  ACCESS_LATCH accessLatchLocal;
-  ACCESS_ZERO accessZeroLocal;
+  ACCESS_STATUS accessStatusShadow;
+  ACCESS_COMMAND accessCommandShadow;
+  ACCESS_LATCH accessLatchShadow;
+  ACCESS_ZERO accessZeroShadow;
 
   accessStatus = ACCESS_STATUS::OVERRUN::CLEAR | ACCESS_STATUS::FRAME::CLEAR;
   accessStatus.set<ACCESS_STATUS::FRAME::CLEAR>();
@@ -178,33 +240,33 @@ void compileCheckedAccessExamples() {
   const bool latchOn = (accessLatch & ACCESS_LATCH::ENABLED::ON);
   const bool stickySet = (accessZero & ACCESS_ZERO::STICKY::SET);
 
-  accessStatusLocal = accessStatus;
-  accessStatusLocal = ACCESS_STATUS::OVERRUN::CLEAR | ACCESS_STATUS::FRAME::CLEAR;
-  const bool localReady = (accessStatusLocal & ACCESS_STATUS::READY::ASSERTED);
-  const auto localCount = accessStatusLocal.get<ACCESS_STATUS::COUNT>();
-  accessStatus = accessStatusLocal;
+  accessStatusShadow = accessStatus;
+  accessStatusShadow = ACCESS_STATUS::OVERRUN::CLEAR | ACCESS_STATUS::FRAME::CLEAR;
+  const bool shadowReady = (accessStatusShadow & ACCESS_STATUS::READY::ASSERTED);
+  const auto shadowCount = accessStatusShadow.get<ACCESS_STATUS::COUNT>();
+  accessStatus = accessStatusShadow;
 
-  accessCommandLocal = ACCESS_COMMAND::START::TRIGGER | ACCESS_COMMAND::COUNT::value(3);
-  accessCommandLocal.set(ACCESS_COMMAND::STOP::TRIGGER | ACCESS_COMMAND::COUNT::value(1));
-  accessCommandLocal.set<ACCESS_COMMAND::START::TRIGGER>();
-  accessCommand = accessCommandLocal;
+  accessCommandShadow = ACCESS_COMMAND::START::TRIGGER | ACCESS_COMMAND::COUNT::value(3);
+  accessCommandShadow.set(ACCESS_COMMAND::STOP::TRIGGER | ACCESS_COMMAND::COUNT::value(1));
+  accessCommandShadow.set<ACCESS_COMMAND::START::TRIGGER>();
+  accessCommand = accessCommandShadow;
 
-  accessLatchLocal = ACCESS_LATCH::ENABLED::SET | ACCESS_LATCH::CHANNEL::SET;
-  const bool localLatchOn = (accessLatchLocal & ACCESS_LATCH::ENABLED::ON);
-  accessLatch = accessLatchLocal;
+  accessLatchShadow = ACCESS_LATCH::ENABLED::SET | ACCESS_LATCH::CHANNEL::SET;
+  const bool shadowLatchOn = (accessLatchShadow & ACCESS_LATCH::ENABLED::ON);
+  accessLatch = accessLatchShadow;
 
-  accessZeroLocal = ACCESS_ZERO::STICKY::CLEAR_LATCH | ACCESS_ZERO::ARMED::FORCE_SET;
-  const bool localStickySet = (accessZeroLocal & ACCESS_ZERO::STICKY::SET);
-  accessZero = accessZeroLocal;
+  accessZeroShadow = ACCESS_ZERO::STICKY::CLEAR_LATCH | ACCESS_ZERO::ARMED::FORCE_SET;
+  const bool shadowStickySet = (accessZeroShadow & ACCESS_ZERO::STICKY::SET);
+  accessZero = accessZeroShadow;
   (void)ready;
   (void)overrunDetected;
   (void)count;
   (void)latchOn;
   (void)stickySet;
-  (void)localReady;
-  (void)localCount;
-  (void)localLatchOn;
-  (void)localStickySet;
+  (void)shadowReady;
+  (void)shadowCount;
+  (void)shadowLatchOn;
+  (void)shadowStickySet;
 }
 
 void compileCheckedStm32f429RegisterExamples() {
@@ -437,6 +499,148 @@ void compileCheckedStm32f429DriverExamples() {
   (void)i2sDuplexIt;
 }
 
+int runBoundRegisterRuntimeChecks() {
+#if !defined(_WIN32)
+  return 0;
+#else
+  int failures = 0;
+
+  auto expect = [&failures](bool condition) {
+    if (!condition) {
+      ++failures;
+    }
+  };
+
+  auto rawWord = [](std::uintptr_t address) -> volatile std::uint32_t& {
+    return *reinterpret_cast<volatile std::uint32_t*>(address);
+  };
+
+  auto readWord = [&rawWord](std::uintptr_t address) -> std::uint32_t { return rawWord(address); };
+  auto writeWord = [&rawWord](std::uintptr_t address, std::uint32_t value) { rawWord(address) = value; };
+
+  ScopedHostMmioWindow mmioWindow;
+  if (!mmioWindow.mapped()) {
+    return 1;
+  }
+
+  auto clearWindow = [&]() {
+    writeWord(kHostSpiCrAddress, 0u);
+    writeWord(kHostSpiMrAddress, 0u);
+    writeWord(kHostSpiSrAddress, 0u);
+    writeWord(kHostAccessStatusAddress, 0u);
+    writeWord(kHostAccessCommandAddress, 0u);
+    writeWord(kHostAccessLatchAddress, 0u);
+    writeWord(kHostAccessZeroAddress, 0u);
+  };
+
+  SPI_CR::Instance<kHostSpiCrAddress> spiCr;
+  SPI_MR::Instance<kHostSpiMrAddress> spiMr;
+  SPI_SR::Instance<kHostSpiSrAddress> spiSr;
+  ACCESS_STATUS::Instance<kHostAccessStatusAddress> accessStatus;
+  ACCESS_COMMAND::Instance<kHostAccessCommandAddress> accessCommand;
+  ACCESS_LATCH::Instance<kHostAccessLatchAddress> accessLatch;
+  ACCESS_ZERO::Instance<kHostAccessZeroAddress> accessZero;
+
+  clearWindow();
+
+  spiCr = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET | SPI_CR::CMD::value(2);
+  expect(readWord(kHostSpiCrAddress) == (bit(0) | bit(7) | encode(8, 2)));
+  expect(spiCr & SPI_CR::SPIEN::ENABLE);
+  expect(spiCr.get<SPI_CR::CMD>() == 2u);
+
+  spiCr &= ~SPI_CR::SWRST::MASK;
+  expect(readWord(kHostSpiCrAddress) == (bit(0) | encode(8, 2)));
+
+  spiCr.set<SPI_CR::CMD>(1u);
+  expect(readWord(kHostSpiCrAddress) == (bit(0) | encode(8, 1)));
+  expect(spiCr & SPI_CR::SWRST::IDLE);
+
+  spiMr = SPI_MR::MSTR::MASTER | SPI_MR::CSAAT::KEEP_ASSERTED |
+          SPI_MR::PCS::value(2) | SPI_MR::DLY::value(7);
+  expect(readWord(kHostSpiMrAddress) == (bit(0) | bit(3) | encode(4, 2) | encode(8, 7)));
+  expect(spiMr & SPI_MR::MSTR::MASTER);
+  expect(spiMr.get<SPI_MR::PCS>() == 2u);
+  expect(static_cast<std::uint32_t>(spiMr.get<SPI_MR::DLY>()) == 7u);
+
+  spiMr &= ~SPI_MR::CSAAT::MASK;
+  expect(readWord(kHostSpiMrAddress) == (bit(0) | encode(4, 2) | encode(8, 7)));
+  expect(spiMr & SPI_MR::CSAAT::RELEASE);
+
+  writeWord(kHostSpiSrAddress, bit(0) | bit(1) | bit(3));
+  expect(spiSr & SPI_SR::RDRF::READY);
+  expect(spiSr & SPI_SR::TDRE::READY);
+  expect(spiSr & SPI_SR::OVRES::OVERRUN);
+
+  writeWord(kHostAccessStatusAddress, bit(0) | encode(4, 5) | bit(8));
+  expect(accessStatus & ACCESS_STATUS::READY::ASSERTED);
+  expect(accessStatus.get<ACCESS_STATUS::COUNT>() == 5u);
+  expect(accessStatus & ACCESS_STATUS::OVERRUN::DETECTED);
+  expect(accessStatus & ACCESS_STATUS::FRAME::OK);
+
+  accessCommand = ACCESS_COMMAND::START::TRIGGER | ACCESS_COMMAND::COUNT::value(3);
+  expect(readWord(kHostAccessCommandAddress) == (bit(0) | encode(8, 3)));
+
+  accessLatch = ACCESS_LATCH::ENABLED::SET | ACCESS_LATCH::CHANNEL::SET;
+  expect(readWord(kHostAccessLatchAddress) == (bit(0) | bit(1)));
+
+  accessZero = ACCESS_ZERO::STICKY::CLEAR_LATCH | ACCESS_ZERO::ARMED::FORCE_SET;
+  expect(readWord(kHostAccessZeroAddress) == 0u);
+
+  return failures;
+#endif
+}
+
+int runShadowRegisterRuntimeChecks() {
+  int failures = 0;
+
+  auto expect = [&failures](bool condition) {
+    if (!condition) {
+      ++failures;
+    }
+  };
+
+  SPI_CR controlShadow;
+  SPI_CR externalControlShadow = SPI_CR::SPIEN::ENABLE | SPI_CR::CMD::value(3);
+  SPI_CR committedControlShadow;
+  SPI_MR modeShadow = SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(5);
+  stm32f429::spi::CR1 spiConfigShadow;
+
+  expect(controlShadow & SPI_CR::SPIEN::DISABLE);
+  expect(controlShadow.get<SPI_CR::CMD>() == 0u);
+
+  controlShadow = externalControlShadow;
+  expect(controlShadow & SPI_CR::SPIEN::ENABLE);
+  expect(controlShadow.get<SPI_CR::CMD>() == 3u);
+
+  controlShadow |= SPI_CR::SWRST::RESET;
+  controlShadow &= ~SPI_CR::SPIEN::MASK;
+  controlShadow.set<SPI_CR::CMD>(1u);
+  expect(controlShadow & SPI_CR::SWRST::RESET);
+  expect(controlShadow & SPI_CR::SPIEN::DISABLE);
+  expect(controlShadow.get<SPI_CR::CMD>() == 1u);
+
+  committedControlShadow = controlShadow;
+  expect(committedControlShadow & SPI_CR::SWRST::RESET);
+  expect(committedControlShadow.get<SPI_CR::CMD>() == 1u);
+
+  modeShadow.set(SPI_MR::MSTR::MASTER | SPI_MR::PCS::value(2) | SPI_MR::DLY::value(7));
+  modeShadow &= ~SPI_MR::CSAAT::MASK;
+  expect(modeShadow & SPI_MR::MSTR::MASTER);
+  expect(modeShadow & SPI_MR::CSAAT::RELEASE);
+  expect(modeShadow.get<SPI_MR::PCS>() == 2u);
+  expect(static_cast<std::uint32_t>(modeShadow.get<SPI_MR::DLY>()) == 7u);
+
+  spiConfigShadow = stm32f429::spi::CR1::MSTR::MASTER | stm32f429::spi::CR1::BR::DIV_16;
+  spiConfigShadow |= stm32f429::spi::CR1::SPE::ENABLED;
+  spiConfigShadow &= ~stm32f429::spi::CR1::CRCEN::MASK;
+  expect(spiConfigShadow & stm32f429::spi::CR1::MSTR::MASTER);
+  expect(spiConfigShadow & stm32f429::spi::CR1::SPE::ENABLED);
+  expect(spiConfigShadow.get<stm32f429::spi::CR1::BR>() == 3u);
+  expect(spiConfigShadow & stm32f429::spi::CR1::CRCEN::DISABLED);
+
+  return failures;
+}
+
 }  // namespace
 
 int main() {
@@ -444,5 +648,5 @@ int main() {
   (void)&compileCheckedAccessExamples;
   (void)&compileCheckedStm32f429RegisterExamples;
   (void)&compileCheckedStm32f429DriverExamples;
-  return 0;
+  return runBoundRegisterRuntimeChecks() + runShadowRegisterRuntimeChecks();
 }

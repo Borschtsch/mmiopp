@@ -15,10 +15,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset:
-          - host-test
-          - qemu-m3-test
-          - qemu-r5-test
+        include:
+          - preset: host-test
+            test_preset: host
+            build_dir: build/host
+          - preset: qemu-m3-test
+            test_preset: qemu-m3
+            build_dir: build/qemu-m3
+          - preset: qemu-r5-test
+            test_preset: qemu-r5
+            build_dir: build/qemu-r5
 
     defaults:
       run:
@@ -32,4 +38,31 @@ jobs:
         run: ./scripts/bootstrap.ps1
 
       - name: Run CMake workflow preset
-        run: cmake --workflow --preset ${{ matrix.preset }}
+        run: |
+          .\scripts\run-ci-workflow.ps1 `
+            -Preset "${{ matrix.preset }}" `
+            -BuildDir "${{ matrix.build_dir }}"
+
+      - name: Publish test metrics summary
+        if: always()
+        run: |
+          .\scripts\ci-test-metrics.ps1 `
+            -Preset "${{ matrix.preset }}" `
+            -TestPreset "${{ matrix.test_preset }}" `
+            -BuildDir "${{ matrix.build_dir }}" `
+            -WorkflowDurationSeconds "$env:WORKFLOW_DURATION_SECONDS" `
+            -WorkflowExitCode "$env:WORKFLOW_EXIT_CODE" `
+            -WorkflowLogPath "$env:WORKFLOW_LOG_PATH"
+
+      - name: Upload test logs and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.preset }}-metrics
+          path: |
+            ${{ matrix.build_dir }}/ci-workflow.log
+            ${{ matrix.build_dir }}/Testing/Temporary/LastTest.log
+            ${{ matrix.build_dir }}/Testing/Temporary/CTestCostData.txt
+            ${{ matrix.build_dir }}/ci-metrics.json
+            ${{ matrix.build_dir }}/compile_fail/*.log
+          if-no-files-found: ignore

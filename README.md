@@ -65,6 +65,25 @@ spiMr.set<SPI_MR::DLY>(7);
 const bool isMaster = spiMr & SPI_MR::MSTR::MASTER;
 ```
 
+The same register definition type also works as a shadow register value:
+
+```cpp
+SPI_MR modeShadow = SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7);
+modeShadow.set<SPI_MR::PCS>(2);
+
+SPI_MR::Instance<0xFFFE0004u> spiMr;
+spiMr = modeShadow;
+```
+
+That pattern is useful when a register image belongs to an external device, when you want to stage several field updates locally, or when you want to snapshot one live register and commit a modified copy back later.
+
+## Performance
+
+MMIO++ is designed to stay zero-overhead in the usual embedded sense:
+
+- MMIO-bound register objects still compile down to direct volatile loads and stores.
+- Shadow registers are plain non-volatile local values, so the compiler can fold several updates together before one final commit.
+- The framework uses compile-time types to reject misuse instead of runtime checks.
 
 For the longer project story and the API rationale beyond the quickstart, see [docs/index.html](docs/index.html).
 

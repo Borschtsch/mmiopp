@@ -17,6 +17,6 @@ struct CortexR5Config {
 
 }  // namespace
 
-extern "C" int mmiopp_target_main() {
-  return mmiopp::targets::runtime_tests::run<CortexR5Config>();
+extern "C" int mmiocpp_target_main() {
+  return mmiocpp::targets::runtime_tests::run<CortexR5Config>();
 }

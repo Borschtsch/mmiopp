@@ -15,28 +15,28 @@
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "${sourceDir}/.local/winlibs/mingw64/bin/g++.exe",
         "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/winlibs/mingw64/bin/mingw32-make.exe",
-        "MMIOPP_BUILD_DEMO": "ON",
-        "MMIOPP_BUILD_TESTS": "ON",
-        "MMIOPP_BUILD_QEMU_TARGET": "OFF",
-        "MMIOPP_BUILD_QEMU_R5_TARGET": "OFF"
+        "MMIOCPP_BUILD_DEMO": "ON",
+        "MMIOCPP_BUILD_TESTS": "ON",
+        "MMIOCPP_BUILD_QEMU_TARGET": "OFF",
+        "MMIOCPP_BUILD_QEMU_R5_TARGET": "OFF"
       }
     },
     {
-      "name": "qemu",
+      "name": "qemu-m3",
       "displayName": "QEMU Cortex-M3 build",
       "description": "Windows Cortex-M3/QEMU build using the repo-local make tool and the Arm GNU Toolchain.",
       "generator": "MinGW Makefiles",
-      "binaryDir": "${sourceDir}/build/qemu",
+      "binaryDir": "${sourceDir}/build/qemu-m3",
       "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
       "environment": {
-        "MMIOPP_QEMU_SYSTEM_ARM": "C:/Program Files/qemu/qemu-system-arm.exe"
+        "MMIOCPP_QEMU_SYSTEM_ARM": "C:/Program Files/qemu/qemu-system-arm.exe"
       },
       "cacheVariables": {
         "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/winlibs/mingw64/bin/mingw32-make.exe",
-        "MMIOPP_BUILD_DEMO": "OFF",
-        "MMIOPP_BUILD_TESTS": "OFF",
-        "MMIOPP_BUILD_QEMU_TARGET": "ON",
-        "MMIOPP_BUILD_QEMU_R5_TARGET": "OFF"
+        "MMIOCPP_BUILD_DEMO": "OFF",
+        "MMIOCPP_BUILD_TESTS": "OFF",
+        "MMIOCPP_BUILD_QEMU_TARGET": "ON",
+        "MMIOCPP_BUILD_QEMU_R5_TARGET": "OFF"
       }
     },
     {
@@ -47,14 +47,14 @@
       "binaryDir": "${sourceDir}/build/qemu-r5",
       "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
       "environment": {
-        "MMIOPP_QEMU_SYSTEM_ARM": "C:/Program Files/qemu/qemu-system-arm.exe"
+        "MMIOCPP_QEMU_SYSTEM_ARM": "C:/Program Files/qemu/qemu-system-arm.exe"
       },
       "cacheVariables": {
         "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/winlibs/mingw64/bin/mingw32-make.exe",
-        "MMIOPP_BUILD_DEMO": "OFF",
-        "MMIOPP_BUILD_TESTS": "OFF",
-        "MMIOPP_BUILD_QEMU_TARGET": "OFF",
-        "MMIOPP_BUILD_QEMU_R5_TARGET": "ON"
+        "MMIOCPP_BUILD_DEMO": "OFF",
+        "MMIOCPP_BUILD_TESTS": "OFF",
+        "MMIOCPP_BUILD_QEMU_TARGET": "OFF",
+        "MMIOCPP_BUILD_QEMU_R5_TARGET": "ON"
       }
     }
   ],
@@ -64,14 +64,14 @@
       "configurePreset": "host"
     },
     {
-      "name": "qemu",
-      "configurePreset": "qemu"
+      "name": "qemu-m3",
+      "configurePreset": "qemu-m3"
     },
     {
-      "name": "qemu-run",
-      "configurePreset": "qemu",
+      "name": "qemu-m3-run",
+      "configurePreset": "qemu-m3",
       "targets": [
-        "run_mmiopp_qemu_tests"
+        "run_mmiocpp_qemu_tests"
       ]
     },
     {
@@ -82,7 +82,7 @@
       "name": "qemu-r5-run",
       "configurePreset": "qemu-r5",
       "targets": [
-        "run_mmiopp_qemu_r5_tests"
+        "run_mmiocpp_qemu_r5_tests"
       ]
     }
   ],
@@ -95,8 +95,8 @@
       }
     },
     {
-      "name": "qemu",
-      "configurePreset": "qemu",
+      "name": "qemu-m3",
+      "configurePreset": "qemu-m3",
       "output": {
         "outputOnFailure": true
       }
@@ -141,45 +141,45 @@
       ]
     },
     {
-      "name": "qemu-build",
+      "name": "qemu-m3-build",
       "steps": [
         {
           "type": "configure",
-          "name": "qemu"
+          "name": "qemu-m3"
         },
         {
           "type": "build",
-          "name": "qemu"
+          "name": "qemu-m3"
         }
       ]
     },
     {
-      "name": "qemu-run",
+      "name": "qemu-m3-run",
       "steps": [
         {
           "type": "configure",
-          "name": "qemu"
+          "name": "qemu-m3"
         },
         {
           "type": "build",
-          "name": "qemu-run"
+          "name": "qemu-m3-run"
         }
       ]
     },
     {
-      "name": "qemu-test",
+      "name": "qemu-m3-test",
       "steps": [
         {
           "type": "configure",
-          "name": "qemu"
+          "name": "qemu-m3"
         },
         {
           "type": "build",
-          "name": "qemu"
+          "name": "qemu-m3"
         },
         {
           "type": "test",
-          "name": "qemu"
+          "name": "qemu-m3"
         }
       ]
     },

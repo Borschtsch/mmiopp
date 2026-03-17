@@ -12,8 +12,6 @@ $toolInstallDir = Join-Path $toolRoot 'winlibs'
 $gxx = Join-Path $toolInstallDir 'mingw64\bin\g++.exe'
 $packages = @(
   @{ Id = 'Kitware.CMake'; Name = 'CMake' },
-  @{ Id = 'Ninja-build.Ninja'; Name = 'Ninja' },
-  @{ Id = 'LLVM.LLVM'; Name = 'LLVM/Clang' },
   @{ Id = 'Arm.ArmGnuToolchain'; Name = 'Arm GNU Toolchain' },
   @{ Id = 'SoftwareFreedomConservancy.QEMU'; Name = 'QEMU' }
 )
@@ -72,7 +70,7 @@ function Install-PortableFallback {
 if (-not $PortableFallbackOnly) {
   $winget = Get-Command winget -ErrorAction SilentlyContinue
   if (-not $winget) {
-    throw "winget was not found on PATH. Either install winget first or run 'pwsh ./scripts/bootstrap.ps1 -PortableFallbackOnly'."
+    throw "winget was not found on PATH. Either install winget first or run 'powershell -ExecutionPolicy Bypass -File .\\scripts\\bootstrap.ps1 -PortableFallbackOnly'."
   }
 
   foreach ($package in $packages) {
@@ -85,9 +83,9 @@ Install-PortableFallback
 Write-Host 'Bootstrap completed.'
 Write-Host 'Host build path: cmake --workflow --preset host'
 Write-Host 'Host test path: cmake --workflow --preset host-test'
-Write-Host 'QEMU build path: cmake --workflow --preset qemu-build'
-Write-Host 'QEMU run path: cmake --workflow --preset qemu-run'
-Write-Host 'QEMU test path: cmake --workflow --preset qemu-test'
+Write-Host 'QEMU build path: cmake --workflow --preset qemu-m3-build'
+Write-Host 'QEMU run path: cmake --workflow --preset qemu-m3-run'
+Write-Host 'QEMU test path: cmake --workflow --preset qemu-m3-test'
 Write-Host 'QEMU Cortex-R5 build path: cmake --workflow --preset qemu-r5-build'
 Write-Host 'QEMU Cortex-R5 run path: cmake --workflow --preset qemu-r5-run'
 Write-Host 'QEMU Cortex-R5 test path: cmake --workflow --preset qemu-r5-test'

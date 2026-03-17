@@ -1,5 +1,5 @@
-#ifndef MMIOPP_RUNTIME_TEST_SUITE_HPP
-#define MMIOPP_RUNTIME_TEST_SUITE_HPP
+#ifndef MMIOCPP_RUNTIME_TEST_SUITE_HPP
+#define MMIOCPP_RUNTIME_TEST_SUITE_HPP
 
 #include <cstdint>
 
@@ -7,7 +7,7 @@
 #include "access_example_registers.hpp"
 #include "spi_example_registers.hpp"
 
-namespace mmiopp::targets::runtime_tests {
+namespace mmiocpp::targets::runtime_tests {
 
 struct SPI_CR_ALIAS : mmio::Register<SPI_CR_ALIAS> {
   struct SPIEN : mmio::BitField<SPI_CR_ALIAS, 0, 1> {
@@ -28,7 +28,7 @@ class Suite {
  public:
   static int run() {
     g_failures = 0;
-    mmiopp::qemu::semihosting::write0(Config::kBanner);
+    mmiocpp::qemu::semihosting::write0(Config::kBanner);
     test_address_targeting_and_exact_raw_writes();
     test_direct_raw_writes_decode_through_api();
     test_logical_operations_and_readback();
@@ -38,7 +38,7 @@ class Suite {
     test_alias_views_share_the_same_address();
 
     if (g_failures == 0) {
-      mmiopp::qemu::semihosting::write0(Config::kSuccess);
+      mmiocpp::qemu::semihosting::write0(Config::kSuccess);
     }
     return g_failures == 0 ? 0 : 1;
   }
@@ -78,9 +78,9 @@ class Suite {
   }
 
   static void report_failure(const char* message) {
-    mmiopp::qemu::semihosting::write0("FAIL: ");
-    mmiopp::qemu::semihosting::write0(message);
-    mmiopp::qemu::semihosting::write0("\n");
+    mmiocpp::qemu::semihosting::write0("FAIL: ");
+    mmiocpp::qemu::semihosting::write0(message);
+    mmiocpp::qemu::semihosting::write0("\n");
     ++g_failures;
   }
 
@@ -388,6 +388,6 @@ int run() {
   return Suite<Config>::run();
 }
 
-}  // namespace mmiopp::targets::runtime_tests
+}  // namespace mmiocpp::targets::runtime_tests
 
-#endif  // MMIOPP_RUNTIME_TEST_SUITE_HPP
+#endif  // MMIOCPP_RUNTIME_TEST_SUITE_HPP

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MMIO++: Macro-Familiar API</title>
+    <meta
+      name="description"
+      content="How MMIO++ keeps the register macro mental model while separating values, masks, and field-local operations."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="subpage-header">
+        <p class="eyebrow">MMIO++</p>
+        <h1>The macro-familiar API angle</h1>
+        <p class="lede">
+          The point is not to hide register programming behind
+          abstractions. The point is to keep the same register language
+          while making illegal combinations fail at compile time.
+        </p>
+        <nav class="hero-nav">
+          <a href="index.html">Overview</a>
+          <a href="verification.html">Verification Story</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="panel">
+          <h2>What stays familiar</h2>
+          <ul class="signal-list">
+            <li>Registers are still addressed explicitly through a fixed MMIO address.</li>
+            <li>Fields still expose named states such as <code>ENABLE</code>, <code>RESET</code>, or <code>MASTER</code>.</li>
+            <li>Masks are still first-class and derived from the field layout.</li>
+            <li>Whole-register compositions still read like datasheet snippets.</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>What changes</h2>
+          <div class="code-compare">
+            <article>
+              <h3>Loose macro world</h3>
+              <pre><code>#define SPI_CR_SPIEN_ENABLE  (1u &lt;&lt; 0)
+#define SPI_MR_MSTR_MASTER   (1u &lt;&lt; 0)
+
+SPI_CR = SPI_MR_MSTR_MASTER;   /* wrong register */
+SPI_CR = SPI_CR_SPIEN_Msk;     /* mask written as value */
+SPI_MR |= SPI_MR_DLY(7);       /* field write via OR */</code></pre>
+            </article>
+            <article>
+              <h3>MMIO++ world</h3>
+              <pre><code>SPI_CR::Instance&lt;0xFFFE0000u&gt; spiCr;
+SPI_MR::Instance&lt;0xFFFE0004u&gt; spiMr;
+
+spiCr = SPI_CR::SPIEN::ENABLE;
+spiCr &= ~SPI_CR::SPIEN::MASK;
+spiMr.set&lt;SPI_MR::DLY&gt;(7);
+
+/* cross-register mixes and mask/value confusion
+   are compile-fail cases in this repo */</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel panel-grid">
+          <article>
+            <h2>Public concepts</h2>
+            <ul class="signal-list">
+              <li><code>FIELD::VALUE_NAME</code> encodes a specific state of a field.</li>
+              <li><code>FIELD::MASK</code> is the field bit mask derived from position and width.</li>
+              <li><code>FIELD::value(x)</code> encodes numeric value-field payloads.</li>
+              <li><code>REGISTER::MASK</code> is the full-register clear or toggle mask.</li>
+            </ul>
+          </article>
+          <article>
+            <h2>Why the split matters</h2>
+            <p>
+              Register code is full of operations that look similar but
+              do different things. OR-ing in an enable bit is not the
+              same operation as clearing a field mask. Writing a field
+              state is not the same operation as assigning the field
+              mask itself.
+            </p>
+            <p>
+              MMIO++ makes those distinctions part of the public type
+              system instead of leaving them as comments and team
+              conventions.
+            </p>
+          </article>
+        </section>
+
+        <section class="panel">
+          <h2>Examples from the current repo</h2>
+          <pre><code>SPI_CR::Instance&lt;0xFFFE0000u&gt; spiCr;
+SPI_MR::Instance&lt;0xFFFE0004u&gt; spiMr;
+
+spiCr = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET;
+spiCr |= SPI_CR::SPIEN::ENABLE;
+spiCr &= ~SPI_CR::SWRST::MASK;
+spiCr ^= SPI_CR::SPIEN::MASK;
+
+spiMr = SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7);
+spiMr.set&lt;SPI_MR::MSTR::MASTER&gt;();
+spiMr.set(SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7));
+spiMr.set&lt;SPI_MR::DLY&gt;(7);</code></pre>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

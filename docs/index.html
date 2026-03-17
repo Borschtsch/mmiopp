@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MMIO++</title>
+    <meta
+      name="description"
+      content="MMIO++ is a C++ memory-mapped I/O framework that keeps the macro-era register mental model while adding register-typed field safety."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="hero">
+        <p class="eyebrow">MMIO++</p>
+        <h1>Macro-familiar register code, without macro-era type holes.</h1>
+        <p class="lede">
+          MMIO++ keeps the shape embedded developers already know:
+          register names, field names, encoded values, and masks. The
+          difference is that the compiler now enforces which pieces may
+          be combined, assigned, cleared, compared, or rejected.
+        </p>
+        <nav class="hero-nav">
+          <a href="macro-familiar-api.html">Macro-Familiar API</a>
+          <a href="verification.html">Verification Story</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="panel panel-grid">
+          <article>
+            <h2>The Project Story</h2>
+            <p>
+              Embedded register code often starts from C macros because
+              they are direct, terse, and map cleanly onto datasheets.
+              MMIO++ does not fight that mental model. It refines it.
+            </p>
+            <p>
+              A field still has named states and a derived mask. A
+              register still feels like a fixed address. The public API
+              keeps those concepts distinct so the compiler can block
+              the classic mistakes: mixing fields from different
+              registers, writing masks as values, or using value fields
+              in bitwise-clear paths.
+            </p>
+          </article>
+          <article>
+            <h2>What The Repo Proves</h2>
+            <ul class="signal-list">
+              <li>Header-only core abstractions live in <code>include/mmio.hpp</code>.</li>
+              <li>Example register maps stay outside the framework header.</li>
+              <li>Host checks validate API shape and compile-fail misuse cases.</li>
+              <li>QEMU runtime tests execute register code at real target addresses.</li>
+              <li>Cortex-R5 runs under the same Windows-first preset flow as the other test paths.</li>
+            </ul>
+          </article>
+        </section>
+
+        <section class="panel">
+          <h2>Why The API Looks Familiar</h2>
+          <div class="code-compare">
+            <article>
+              <h3>Classic macro style</h3>
+              <pre><code>SPI_CR = SPI_CR_SPIEN_ENABLE
+       | SPI_CR_SWRST_RESET;
+
+SPI_CR |= SPI_CR_SPIEN_ENABLE;
+SPI_CR &= ~SPI_CR_SWRST_Msk;
+
+SPI_MR = SPI_MR_MSTR_MASTER
+       | SPI_MR_DLY(7);</code></pre>
+            </article>
+            <article>
+              <h3>MMIO++ style</h3>
+              <pre><code>SPI_CR::Instance&lt;0xFFFE0000u&gt; spiCr;
+SPI_MR::Instance&lt;0xFFFE0004u&gt; spiMr;
+
+spiCr = SPI_CR::SPIEN::ENABLE
+      | SPI_CR::SWRST::RESET;
+
+spiCr |= SPI_CR::SPIEN::ENABLE;
+spiCr &= ~SPI_CR::SWRST::MASK;
+
+spiMr = SPI_MR::MSTR::MASTER
+      | SPI_MR::DLY::value(7);</code></pre>
+            </article>
+          </div>
+          <p class="caption">
+            The names stay close to register-map macros. The types
+            change what the compiler is allowed to accept.
+          </p>
+        </section>
+
+        <section class="panel panel-grid">
+          <article>
+            <h2>Values vs Masks</h2>
+            <p>
+              MMIO++ treats encoded values and masks as different public
+              tokens because they mean different things in real register
+              code.
+            </p>
+            <ul class="signal-list">
+              <li><code>FIELD::VALUE_NAME</code> is for whole-register writes, predicates, and OR-safe set operations.</li>
+              <li><code>FIELD::MASK</code> is for clear or toggle operations.</li>
+              <li><code>FIELD::value(x)</code> is for numeric value fields.</li>
+            </ul>
+          </article>
+          <article>
+            <h2>Register Operations</h2>
+            <pre><code>spiMr.set&lt;SPI_MR::MSTR::MASTER&gt;();
+spiMr.set(SPI_MR::MSTR::MASTER
+        | SPI_MR::DLY::value(7));
+spiMr.set&lt;SPI_MR::DLY&gt;(7);
+
+const bool isMaster =
+  (spiMr &amp; SPI_MR::MSTR::MASTER);</code></pre>
+          </article>
+        </section>
+
+        <section class="panel callout">
+          <h2>Local and CI Use The Same Entry Points</h2>
+          <p>
+            The repository already exposes direct CMake workflow
+            presets. The Windows CI setup uses those same preset
+            commands instead of duplicating the build logic in YAML.
+          </p>
+          <pre><code>cmake --workflow --preset host-test
+cmake --workflow --preset qemu-m3-test
+cmake --workflow --preset qemu-r5-test</code></pre>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

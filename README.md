@@ -1,19 +1,35 @@
-# mmiocpp
-MMIO++ is an embedded memory‑mapped I/O access framework developed in modern C++.
+# MMIO++
 
-The framework brings the familiar, concise access style of classic C register macros—the style embedded developers know well, while eliminating their pitfalls. With MMIO++, you get code that looks like clean, direct register manipulation, yet is backed by strict, modern C++ type safety and zero‑overhead abstractions.
+MMIO++ is a C++ memory-mapped I/O framework for developers who already know the feel of C register macros and want to keep that direct style without keeping the usual hazards.
 
-Designed primarily for MCUs with integrated peripherals, MMIO++ also supports external devices that expose register maps over buses such as SPI or I²C, thanks to its flexible register description style.
+The goal is not to turn register access into a heavyweight abstraction. The goal is to let register code still look familiar:
 
-## API Style
-Register definitions look as simple as below
+- define registers and fields close to the hardware layout
+- compose named field values the way embedded developers already think about them
+- reject cross-register mistakes and mask/value mixups at compile time
+- keep the generated code suitable for real MMIO work
+
+In practice, MMIO++ is meant to feel like the better-behaved C++ version of the macro-based register code many embedded teams already write by hand.
+
+## Why MMIO++
+
+Classic C register macros are concise, but they also make it easy to:
+
+- combine values from unrelated registers
+- confuse field masks with encoded field values
+- write raw integers where only valid field encodings should be allowed
+- lose intent in long chains of shifts and bitwise operators
+
+MMIO++ keeps the familiar register-programming shape while using C++ types to stop those mistakes earlier.
+
+## Familiar Register Style
+
+Register definitions stay close to the way register maps are documented:
+
 ```cpp
-/* Define register */
-struct SPI_CR : mmio::Register<SPI_CR>
-{
-  /* Add necessary fields bit or value fields */
+struct SPI_CR : mmio::Register<SPI_CR> {
   struct SPIEN : mmio::BitField<SPI_CR, 0, 1> {
-    static constexpr auto DISABLE = value(0); // Specify enumerations for bit-fields
+    static constexpr auto DISABLE = value(0);
     static constexpr auto ENABLE = value(1);
   };
 
@@ -22,164 +38,86 @@ struct SPI_CR : mmio::Register<SPI_CR>
     static constexpr auto RESET = value(1);
   };
 
-  struct DLY : mmio::ValueField<SPI_CR, 8, 2, uint8_t> {}; // Specify underlying data type for value
+  struct DLY : mmio::ValueField<SPI_CR, 8, 2, std::uint8_t> {};
 };
 ```
 
-Each field exposes two distinct public concepts, and the API keeps them separate:
+The public API separates the two concepts that C macro code often blurs together:
 
-- `FIELD::VALUE_NAME`: an encoded register value for whole-register writes, predicates, and bit-field set operations.
-- `FIELD::MASK`: the auto-derived bit mask for clear/toggle operations.
+- `FIELD::VALUE_NAME` is an encoded field value used for writes, predicates, and value composition.
+- `FIELD::MASK` is the automatically derived bit mask used for clear and toggle operations.
+- Numeric value fields use `FIELD::value(x)`.
 
-Numeric value fields use `FIELD::value(x)` for encoded values. Bit fields expose named encoded states only; their raw `value(...)` helper is reserved for field definitions.
-
-Access policies fit into the same surface instead of introducing a second API:
-
-- default fields are plain `Rw`, so normal register definitions do not need an explicit access tag
-- when needed, access tags such as `Ro`, `Wo`, `W1c`, `W1s`, `W0c`, `W0s`, and `Rc` add stricter semantics without changing the operator surface
-- symmetric fields define named constants with `value(...)`; asymmetric fields define readable states with `state(...)` and write actions with `action(...)`
-
-Registers additionally accept encoded values directly through `set(...)`, while `set<FIELD>(raw)` remains the masked field-update form only when the field access semantics allow masked replacement.
-
-Examples:
+That makes the call sites read like register code, but with stricter rules:
 
 ```cpp
-/* Define concrete register */
 SPI_CR::Instance<0xFFFE0000u> spiCr;
-/* Or use its shadow variable */
-SPI_CR spiCrShadow;
+SPI_MR::Instance<0xFFFE0004u> spiMr;
 
-spiCrShadow = SPI_CR::SWRST::RESET;
-cpiCr = spiCrShadow;
-
-/* Use familiar C macro syntax to set field values or clear them */
-spiCr |= SPI_CR::SPIEN::ENABLE | SPI_CR::DLY::value(7);
-/* `FIELD::MASK` and `REGISTER::MASK` are derived automatically from the field layout. No raw register read/write API is exposed. */
+spiCr = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET;
+spiCr |= SPI_CR::SPIEN::ENABLE;
 spiCr &= ~SPI_CR::SWRST::MASK;
-spiCr &= ~SPI_CR::MASK;
 
-/* For those who like function calls more */
-spiCr.set(SPI_CR::SPIEN::ENABLE | SPI_CR::DLY::value(7));
+spiMr.set<SPI_MR::MSTR::MASTER>();
+spiMr.set(SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7));
 spiMr.set<SPI_MR::DLY>(7);
 
-/* How about checking if value is set? */
 const bool isMaster = spiMr & SPI_MR::MSTR::MASTER;
 ```
 
-## Layout
 
-- `include/mmio.hpp`: public header with the core MMIO abstractions only. Registers always dereference their bound MMIO address directly.
-- `examples/spi_example_registers.hpp`: example SPI register map used by the demo and tests.
-- `examples/access_example_registers.hpp`: example access-semantics register map covering RO, WO, W1C, W1S, and zero-write semantics.
-- `examples/stm32f429/spi_registers.hpp`: STM32F429 full SPI/I2S block register definitions and peripheral aliases derived from the SDK register map.
-- `examples/stm32f429/spi_driver.hpp`: header-only STM32F429 SPI polling/interrupt driver abstraction built on the typed register map.
-- `examples/stm32f429/i2s_driver.hpp`: header-only STM32F429 I2S polling/interrupt driver abstraction with optional I2Sxext full-duplex support.
-- `mmio_demo.cpp`: compile-checked usage example. Host builds do not execute the MMIO sequence.
-- `tests/mmio_tests.cpp`: host-side positive compile checks for the public API shape.
-- `tests/compile_fail/*.cpp`: negative compile tests that lock down cross-register misuse and mask/value confusion.
-- `targets/qemu-cortex-m/`: freestanding Cortex-M3 target harness, startup code, linker script, and runtime MMIO tests for QEMU.
-- `targets/qemu-cortex-r5/`: freestanding Cortex-R5 target harness, startup code, linker script, and runtime MMIO tests for upstream QEMU.
-- `cmake/toolchains/arm-none-eabi-gcc.cmake`: Arm GNU bare-metal toolchain file for the Cortex-M/QEMU build.
-- `cmake/run_compile_fail_test.cmake`: CTest helper that compiles each negative test and expects failure.
-- `CMakePresets.json`: direct CMake entry points for host build, host test, Cortex-M3 QEMU build/run/test, and Cortex-R5 QEMU build/run/test on Windows.
-- `scripts/bootstrap.ps1`: Windows tool bootstrap. It installs native tools and the repo-local WinLibs fallback that the direct presets use.
-- `scripts/bootstrap.sh`: Linux/macOS native tool bootstrap.
-- `Brewfile`: macOS tool manifest for the Homebrew bootstrap path.
+For the longer project story and the API rationale beyond the quickstart, see [docs/index.html](docs/index.html).
 
-## Bootstrap
+## Project Layout
 
-Windows:
+- `include/mmio.hpp`: core public header only.
+- `examples/`: example register maps and driver code built on top of the core header.
+- `mmio_demo.cpp`: small usage example built through the normal host workflow.
+- `tests/mmio_tests.cpp`: host-side positive API and behavior checks.
+- `tests/compile_fail/*.cpp`: compile-fail coverage for misuse cases.
+- `targets/qemu-cortex-m/`: Cortex-M3 QEMU target harness and runtime tests.
+- `targets/qemu-cortex-r5/`: Cortex-R5 QEMU target harness and runtime tests.
+- `CMakePresets.json`: canonical Windows entrypoints for build and test workflows.
+- `scripts/bootstrap.ps1`: Windows tooling bootstrap.
+
+## Windows Tooling
+
+Install the expected Windows toolchain layout with:
 
 ```powershell
-pwsh ./scripts/bootstrap.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
 ```
 
-Windows portable fallback only:
+The bootstrap installs CMake, the Arm GNU Toolchain, QEMU, and the repo-local WinLibs fallback that the committed presets use.
 
-```powershell
-pwsh ./scripts/bootstrap.ps1 -PortableFallbackOnly
-```
+## Canonical Windows Commands
 
-Linux or macOS:
-
-```sh
-bash ./scripts/bootstrap.sh
-```
-
-## Build
-
-Recommended direct CMake commands on Windows:
+Use the committed CMake workflow presets as the primary entrypoints:
 
 ```powershell
 cmake --workflow --preset host
 cmake --workflow --preset host-test
-cmake --workflow --preset qemu-build
-cmake --workflow --preset qemu-run
-cmake --workflow --preset qemu-test
+cmake --workflow --preset qemu-m3-build
+cmake --workflow --preset qemu-m3-run
+cmake --workflow --preset qemu-m3-test
 cmake --workflow --preset qemu-r5-build
 cmake --workflow --preset qemu-r5-run
 cmake --workflow --preset qemu-r5-test
 ```
 
-Those presets use the known-good Windows tool layout for this repo:
+What they do:
 
-- the repo-local WinLibs toolchain in `.local/winlibs`
-- the Arm GNU Toolchain in its standard `Program Files (x86)` location
-- QEMU in `C:\Program Files\qemu`
+- `host`: configure and build the normal Windows host targets
+- `host-test`: configure, build, and run the host test suite
+- `qemu-m3-build`: build the Cortex-M3 QEMU target
+- `qemu-m3-run`: build and run the Cortex-M3 QEMU runtime test target
+- `qemu-m3-test`: build and run the Cortex-M3 CTest flow
+- `qemu-r5-build`: build the Cortex-R5 QEMU target
+- `qemu-r5-run`: build and run the Cortex-R5 QEMU runtime test target
+- `qemu-r5-test`: build and run the Cortex-R5 CTest flow
 
-Direct host CMake commands on Linux or macOS:
+## What The Tests Cover
 
-```sh
-cmake -S . -B build/host -G Ninja
-cmake --build build/host
-```
+The Windows host workflow checks the public API shape, positive usage paths, and compile-fail misuse cases.
 
-Direct Arm Cortex-M3/QEMU CMake commands on Linux or macOS:
-
-```sh
-cmake -S . -B build/qemu -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/arm-none-eabi-gcc.cmake \
-  -DMMIOPP_BUILD_DEMO=OFF \
-  -DMMIOPP_BUILD_TESTS=OFF \
-  -DMMIOPP_BUILD_QEMU_TARGET=ON
-cmake --build build/qemu
-```
-
-## Test
-
-Host compile checks and compile-fail coverage through direct CMake on Windows:
-
-```powershell
-cmake --workflow --preset host-test
-```
-
-QEMU Cortex-M3 runtime tests through direct CMake on Windows:
-
-```powershell
-cmake --workflow --preset qemu-test
-cmake --workflow --preset qemu-run
-```
-
-QEMU Cortex-R5 runtime tests through direct CMake on Windows:
-
-```powershell
-cmake --workflow --preset qemu-r5-build
-cmake --workflow --preset qemu-r5-run
-cmake --workflow --preset qemu-r5-test
-```
-
-The Cortex-R5 path uses upstream `qemu-system-arm` with the `none` machine, a real `cortex-r5` CPU model, semihosting for pass/fail reporting, and a reserved RAM window for the test register addresses.
-
-Host compile checks and compile-fail coverage on Linux or macOS:
-
-```sh
-ctest --test-dir build/host --output-on-failure
-```
-
-QEMU Cortex-M3 runtime tests on Linux or macOS:
-
-```sh
-ctest --test-dir build/qemu --output-on-failure
-```
-
-The host checks validate API shape, misuse rejection, and compile-smoke coverage for the STM32F429 register-map and driver examples. Runtime register behavior is validated on both Cortex-M3 and Cortex-R5 QEMU targets so the library executes against real target CPU address spaces instead of a desktop MMIO shim.
+The QEMU workflows exercise the code against target CPU address spaces rather than relying only on a desktop shim, so register behavior is validated in a more realistic environment.

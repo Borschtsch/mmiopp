@@ -1,9 +1,9 @@
-#ifndef MMIOPP_QEMU_CORTEX_R5_SEMIHOSTING_HPP
-#define MMIOPP_QEMU_CORTEX_R5_SEMIHOSTING_HPP
+#ifndef MMIOCPP_QEMU_CORTEX_R5_SEMIHOSTING_HPP
+#define MMIOCPP_QEMU_CORTEX_R5_SEMIHOSTING_HPP
 
 #include <cstdint>
 
-namespace mmiopp::qemu::semihosting {
+namespace mmiocpp::qemu::semihosting {
 
 constexpr std::uint32_t kSysWrite0 = 0x04u;
 constexpr std::uint32_t kSysExitExtended = 0x20u;
@@ -27,6 +27,6 @@ inline void write0(const char* text) {
   }
 }
 
-}  // namespace mmiopp::qemu::semihosting
+}  // namespace mmiocpp::qemu::semihosting
 
-#endif  // MMIOPP_QEMU_CORTEX_R5_SEMIHOSTING_HPP
+#endif  // MMIOCPP_QEMU_CORTEX_R5_SEMIHOSTING_HPP

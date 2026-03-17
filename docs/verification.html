@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MMIO++: Verification Story</title>
+    <meta
+      name="description"
+      content="How MMIO++ verifies the public API with host compile checks, compile-fail coverage, and target-side QEMU execution."
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="subpage-header">
+        <p class="eyebrow">MMIO++</p>
+        <h1>Verification story</h1>
+        <p class="lede">
+          The repository tests the public API in layers. Host builds
+          validate shape and misuse rejection. Target builds validate
+          the same API against real MMIO addresses under emulation.
+        </p>
+        <nav class="hero-nav">
+          <a href="index.html">Overview</a>
+          <a href="macro-familiar-api.html">Macro-Familiar API</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="panel panel-grid">
+          <article>
+            <h2>Host-side checks</h2>
+            <ul class="signal-list">
+              <li>Positive host tests compile the intended API shapes.</li>
+              <li>Negative compile-fail tests lock down cross-register misuse and mask/value confusion.</li>
+              <li>The CI workflow runs the same direct local command: <code>cmake --workflow --preset host-test</code>.</li>
+            </ul>
+          </article>
+          <article>
+            <h2>Target-side checks</h2>
+            <ul class="signal-list">
+              <li>Cortex-M QEMU tests execute runtime register behavior at target addresses.</li>
+              <li>Cortex-R5 runtime tests run through the same direct preset flow as the Cortex-M path.</li>
+              <li>The CI workflow uses the same direct preset commands for both target paths.</li>
+            </ul>
+          </article>
+        </section>
+
+        <section class="panel">
+          <h2>Direct commands</h2>
+          <pre><code>cmake --workflow --preset host-test
+cmake --workflow --preset qemu-m3-test
+cmake --workflow --preset qemu-r5-test</code></pre>
+          <p class="caption">
+            The GitHub Actions workflow is intentionally thin. It calls
+            the same preset entry points used on a local Windows setup
+            instead of reimplementing the build graph in YAML.
+          </p>
+        </section>
+
+        <section class="panel">
+          <h2>Why this matters for MMIO code</h2>
+          <p>
+            Register libraries are easy to make look correct in a
+            desktop-only shim. This repo explicitly keeps the host path
+            focused on API shape while relying on target execution for
+            runtime MMIO behavior.
+          </p>
+          <p>
+            That split keeps the framework honest: compile-time rules
+            remain strict, and real-address execution is exercised under
+            an actual target emulator instead of a hidden host-side
+            memory substitute.
+          </p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

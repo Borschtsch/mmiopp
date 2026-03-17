@@ -46,8 +46,8 @@ Reset_Handler:
   str r3, [r1], #4
   b 3b
 4:
-  bl mmiopp_target_main
-  bl mmiopp_target_exit
+  bl mmiocpp_target_main
+  bl mmiocpp_target_exit
 5:
   b 5b
 .size Reset_Handler, . - Reset_Handler

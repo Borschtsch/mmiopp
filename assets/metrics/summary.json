@@ -1,0 +1,147 @@
+{
+    "generatedAtUtc":  "2026-03-18T00:06:09.2753835Z",
+    "tests":  {
+                  "host":  {
+                               "preset":  "host-test",
+                               "testPreset":  "host",
+                               "buildDir":  "C:\\Work\\mmiocpp\\build\\host",
+                               "totalTests":  109,
+                               "compileFailTests":  108,
+                               "runtimeTests":  1,
+                               "passedTests":  109,
+                               "failedTests":  0,
+                               "passRatePercent":  100,
+                               "ctestDurationSeconds":  10.29,
+                               "workflowDurationSeconds":  0,
+                               "workflowExitCode":  0,
+                               "status":  "passed",
+                               "workflowLog":  "C:\\Work\\mmiocpp\\build\\host\\ci-workflow.log",
+                               "lastTestLog":  "C:\\Work\\mmiocpp\\build\\host\\Testing\\Temporary\\LastTest.log",
+                               "costData":  "C:\\Work\\mmiocpp\\build\\host\\Testing\\Temporary\\CTestCostData.txt",
+                               "slowestTests":  [
+                                                    {
+                                                        "name":  "compile_fail_set_template_mask_instead_of_value_local",
+                                                        "durationSeconds":  0.56,
+                                                        "status":  "Passed"
+                                                    },
+                                                    {
+                                                        "name":  "compile_fail_mix_mask_and_value_from_different_registers",
+                                                        "durationSeconds":  0.15,
+                                                        "status":  "Passed"
+                                                    },
+                                                    {
+                                                        "name":  "compile_fail_and_assign_reg_value_instead_of_mask",
+                                                        "durationSeconds":  0.14,
+                                                        "status":  "Passed"
+                                                    },
+                                                    {
+                                                        "name":  "compile_fail_mix_value_fields_from_different_registers_reverse",
+                                                        "durationSeconds":  0.13,
+                                                        "status":  "Passed"
+                                                    },
+                                                    {
+                                                        "name":  "compile_fail_assign_read_only_value",
+                                                        "durationSeconds":  0.13,
+                                                        "status":  "Passed"
+                                                    }
+                                                ]
+                           },
+                  "qemuM3":  {
+                                 "preset":  "qemu-m3-test",
+                                 "testPreset":  "qemu-m3",
+                                 "buildDir":  "C:\\Work\\mmiocpp\\build\\qemu-m3",
+                                 "totalTests":  1,
+                                 "compileFailTests":  0,
+                                 "runtimeTests":  1,
+                                 "passedTests":  1,
+                                 "failedTests":  0,
+                                 "passRatePercent":  100,
+                                 "ctestDurationSeconds":  1.43,
+                                 "workflowDurationSeconds":  5.89,
+                                 "workflowExitCode":  0,
+                                 "status":  "passed",
+                                 "workflowLog":  "C:\\Work\\mmiocpp\\build\\qemu-m3\\ci-workflow.log",
+                                 "lastTestLog":  "C:\\Work\\mmiocpp\\build\\qemu-m3\\Testing\\Temporary\\LastTest.log",
+                                 "costData":  "C:\\Work\\mmiocpp\\build\\qemu-m3\\Testing\\Temporary\\CTestCostData.txt",
+                                 "slowestTests":  [
+                                                      {
+                                                          "name":  "mmiocpp_qemu_runtime",
+                                                          "durationSeconds":  1.43,
+                                                          "status":  "Passed"
+                                                      }
+                                                  ]
+                             },
+                  "qemuR5":  {
+                                 "preset":  "qemu-r5-test",
+                                 "testPreset":  "qemu-r5",
+                                 "buildDir":  "C:\\Work\\mmiocpp\\build\\qemu-r5",
+                                 "totalTests":  1,
+                                 "compileFailTests":  0,
+                                 "runtimeTests":  1,
+                                 "passedTests":  1,
+                                 "failedTests":  0,
+                                 "passRatePercent":  100,
+                                 "ctestDurationSeconds":  2.15,
+                                 "workflowDurationSeconds":  5.89,
+                                 "workflowExitCode":  0,
+                                 "status":  "passed",
+                                 "workflowLog":  "C:\\Work\\mmiocpp\\build\\qemu-r5\\ci-workflow.log",
+                                 "lastTestLog":  "C:\\Work\\mmiocpp\\build\\qemu-r5\\Testing\\Temporary\\LastTest.log",
+                                 "costData":  "C:\\Work\\mmiocpp\\build\\qemu-r5\\Testing\\Temporary\\CTestCostData.txt",
+                                 "slowestTests":  [
+                                                      {
+                                                          "name":  "mmiocpp_qemu_r5_runtime",
+                                                          "durationSeconds":  2.15,
+                                                          "status":  "Passed"
+                                                      }
+                                                  ]
+                             }
+              },
+    "coverage":  {
+                     "core":  {
+                                  "name":  "core",
+                                  "filter":  "include/*",
+                                  "fileCount":  1,
+                                  "lines":  {
+                                                "covered":  88,
+                                                "total":  136,
+                                                "percent":  64.71
+                                            },
+                                  "branches":  {
+                                                   "covered":  3,
+                                                   "total":  6,
+                                                   "percent":  50
+                                               }
+                              },
+                     "examples":  {
+                                      "name":  "examples",
+                                      "filter":  "examples/*",
+                                      "fileCount":  3,
+                                      "lines":  {
+                                                    "covered":  2,
+                                                    "total":  812,
+                                                    "percent":  0.25
+                                                },
+                                      "branches":  {
+                                                       "covered":  0,
+                                                       "total":  364,
+                                                       "percent":  0
+                                                   }
+                                  },
+                     "product":  {
+                                     "name":  "product",
+                                     "filter":  "include/*, examples/*",
+                                     "fileCount":  4,
+                                     "lines":  {
+                                                   "covered":  90,
+                                                   "total":  948,
+                                                   "percent":  9.49
+                                               },
+                                     "branches":  {
+                                                      "covered":  3,
+                                                      "total":  370,
+                                                      "percent":  0.81
+                                                  }
+                                 }
+                 }
+}

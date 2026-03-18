@@ -28,77 +28,74 @@
       </header>
 
       <main>
-        <section class="panel panel-grid">
+        <section class="panel panel-grid story-grid">
           <article>
             <h2>The Project Story</h2>
             <p>
-              Embedded register code often starts from C macros because
-              they are direct, terse, and map cleanly onto datasheets.
-              MMIO++ does not fight that mental model. It refines it.
+              Embedded register code usually starts from the datasheet,
+              not from an object model. That is why so many teams stay
+              with C macros even when they know the tradeoffs: the code
+              stays direct, the names stay familiar, and the hardware
+              intent remains visible.
             </p>
             <p>
-              A field still has named states and a derived mask. A
-              register still feels like a fixed address. The public API
-              keeps those concepts distinct so the compiler can block
-              the classic mistakes: mixing fields from different
-              registers, writing masks as values, or using value fields
-              in bitwise-clear paths.
+              MMIO++ is aimed at that exact moment. It does not try to
+              hide registers behind a framework dialect. It keeps the
+              register-programming shape intact and uses C++ types to
+              block the mistakes that waste time during bring-up:
+              cross-register mixes, mask-versus-value confusion, and
+              write forms that look plausible but mean the wrong thing
+              on the bus.
             </p>
           </article>
           <article>
-            <h2>What The Repo Proves</h2>
+            <h2>Why This Is Credible</h2>
             <ul class="signal-list">
-              <li>Header-only core abstractions live in <code>include/mmio.hpp</code>.</li>
-              <li>Example register maps stay outside the framework header.</li>
-              <li>Host checks validate API shape and compile-fail misuse cases.</li>
-              <li>QEMU runtime tests execute register code at real target addresses.</li>
-              <li>Bound register instances stay the direct-MMIO path, and shadow registers stay plain local values for staged updates.</li>
-              <li>Cortex-R5 runs under the same Windows-first preset flow as the other test paths.</li>
+              <li>The API keeps register call sites close to the way firmware engineers already read datasheets and macro-based headers.</li>
+              <li>Compile-fail coverage locks down the category mistakes that raw macros tend to let through.</li>
+              <li>QEMU runtime tests exercise register reads and writes at real target addresses instead of stopping at host-side simulation.</li>
+              <li>The same register definitions work for live MMIO access and local shadow values, so staged updates do not fork the programming model.</li>
             </ul>
           </article>
         </section>
 
-        <section class="panel">
+        <section class="panel panel-code-showcase">
           <h2>Why The API Looks Familiar</h2>
           <div class="code-compare">
             <article>
               <h3>Classic macro style</h3>
-              <pre><code>SPI_CR = SPI_CR_SPIEN_ENABLE
-       | SPI_CR_SWRST_RESET;
+              <pre><code>SPI_CR = SPI_CR_SPIEN_ENABLE | SPI_CR_SWRST_RESET;
 
 SPI_CR |= SPI_CR_SPIEN_ENABLE;
 SPI_CR &= ~SPI_CR_SWRST_Msk;
 
-SPI_MR = SPI_MR_MSTR_MASTER
-       | SPI_MR_DLY(7);</code></pre>
+SPI_MR = SPI_MR_MSTR_MASTER | SPI_MR_DLY(7);</code></pre>
             </article>
             <article>
               <h3>MMIO++ style</h3>
               <pre><code>SPI_CR::Instance&lt;0xFFFE0000u&gt; spiCr;
 SPI_MR::Instance&lt;0xFFFE0004u&gt; spiMr;
 
-spiCr = SPI_CR::SPIEN::ENABLE
-      | SPI_CR::SWRST::RESET;
-
+spiCr = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET;
 spiCr |= SPI_CR::SPIEN::ENABLE;
 spiCr &= ~SPI_CR::SWRST::MASK;
 
-spiMr = SPI_MR::MSTR::MASTER
-      | SPI_MR::DLY::value(7);</code></pre>
+spiMr = SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7);</code></pre>
             </article>
           </div>
           <p class="caption">
-            The names stay close to register-map macros. The types
-            change what the compiler is allowed to accept.
+            The visual rhythm stays close to register-map macros. The
+            difference is that the type system now distinguishes valid
+            encoded values from masks and unrelated register fields.
           </p>
         </section>
 
-        <section class="panel panel-grid">
+        <section class="panel panel-grid concept-grid">
           <article>
             <h2>Values vs Masks</h2>
             <p>
               MMIO++ treats encoded values and masks as different public
-              tokens because they mean different things in real register
+              tokens because they do different jobs in real register
               code.
             </p>
             <ul class="signal-list">
@@ -110,25 +107,29 @@ spiMr = SPI_MR::MSTR::MASTER
           <article>
             <h2>Register Operations</h2>
             <pre><code>spiMr.set&lt;SPI_MR::MSTR::MASTER&gt;();
-spiMr.set(SPI_MR::MSTR::MASTER
-        | SPI_MR::DLY::value(7));
+spiMr.set(SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7));
 spiMr.set&lt;SPI_MR::DLY&gt;(7);
 
-const bool isMaster =
-  (spiMr &amp; SPI_MR::MSTR::MASTER);</code></pre>
+const bool isMaster = (spiMr &amp; SPI_MR::MSTR::MASTER);</code></pre>
           </article>
         </section>
 
-        <section class="panel callout">
-          <h2>Local and CI Use The Same Entry Points</h2>
+        <section class="panel callout story-callout">
+          <h2>One Register Definition, Two Jobs</h2>
           <p>
-            The repository already exposes direct CMake workflow
-            presets. The Windows CI setup uses those same preset
-            commands instead of duplicating the build logic in YAML.
+            Real firmware often needs both styles of work: direct MMIO
+            access for the live peripheral, and a local register image
+            when a sequence should be staged before one final write.
+            MMIO++ keeps those two paths on the same definition instead
+            of forcing a second API for shadow values.
           </p>
-          <pre><code>cmake --workflow --preset host-test
-cmake --workflow --preset qemu-m3-test
-cmake --workflow --preset qemu-r5-test</code></pre>
+          <pre><code>SPI_MR::Instance&lt;0xFFFE0004u&gt; spiMr;
+SPI_MR shadow = spiMr;
+
+shadow.set&lt;SPI_MR::PCS&gt;(1);
+shadow.set&lt;SPI_MR::DLY&gt;(7);
+
+spiMr = shadow;</code></pre>
         </section>
       </main>
     </div>

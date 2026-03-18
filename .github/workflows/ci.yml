@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - assets/metrics/**
   pull_request:
   workflow_dispatch:
 
@@ -12,6 +14,8 @@ jobs:
     name: ${{ matrix.preset }}
     runs-on: windows-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +58,13 @@ jobs:
             -WorkflowExitCode "$env:WORKFLOW_EXIT_CODE" `
             -WorkflowLogPath "$env:WORKFLOW_LOG_PATH"
 
+      - name: Run host coverage workflow
+        if: matrix.preset == 'host-test'
+        run: |
+          .\scripts\run-ci-coverage.ps1 `
+            -Preset "host-coverage-test" `
+            -BuildDir "build/host-coverage"
+
       - name: Upload test logs and metrics
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,3 +77,52 @@ jobs:
             ${{ matrix.build_dir }}/ci-metrics.json
             ${{ matrix.build_dir }}/compile_fail/*.log
           if-no-files-found: ignore
+
+      - name: Upload coverage artifacts
+        if: always() && matrix.preset == 'host-test'
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-coverage-metrics
+          path: |
+            build/host-coverage/coverage/coverage-summary.json
+            build/host-coverage/coverage/coverage-summary.md
+          if-no-files-found: ignore
+
+  publish-main-page-metrics:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: windows-presets
+    runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: write
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Download metrics artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: .artifacts
+
+      - name: Publish repo metrics
+        run: |
+          .\scripts\publish-repo-metrics.ps1 `
+            -ArtifactsRoot ".artifacts" `
+            -OutputDir "assets/metrics"
+
+      - name: Commit repo metrics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- assets/metrics
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            exit 0
+          }
+          git commit -m "Update repo metrics"
+          git push

@@ -18,7 +18,18 @@
         "MMIOCPP_BUILD_DEMO": "ON",
         "MMIOCPP_BUILD_TESTS": "ON",
         "MMIOCPP_BUILD_QEMU_TARGET": "OFF",
-        "MMIOCPP_BUILD_QEMU_R5_TARGET": "OFF"
+        "MMIOCPP_BUILD_QEMU_R5_TARGET": "OFF",
+        "MMIOCPP_ENABLE_COVERAGE": "OFF"
+      }
+    },
+    {
+      "name": "host-coverage",
+      "displayName": "Host coverage build",
+      "description": "Windows host build with GCC coverage instrumentation.",
+      "inherits": "host",
+      "binaryDir": "${sourceDir}/build/host-coverage",
+      "cacheVariables": {
+        "MMIOCPP_ENABLE_COVERAGE": "ON"
       }
     },
     {
@@ -64,6 +75,10 @@
       "configurePreset": "host"
     },
     {
+      "name": "host-coverage",
+      "configurePreset": "host-coverage"
+    },
+    {
       "name": "qemu-m3",
       "configurePreset": "qemu-m3"
     },
@@ -90,6 +105,13 @@
     {
       "name": "host",
       "configurePreset": "host",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-coverage",
+      "configurePreset": "host-coverage",
       "output": {
         "outputOnFailure": true
       }
@@ -137,6 +159,23 @@
         {
           "type": "test",
           "name": "host"
+        }
+      ]
+    },
+    {
+      "name": "host-coverage-test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "host-coverage"
+        },
+        {
+          "type": "build",
+          "name": "host-coverage"
+        },
+        {
+          "type": "test",
+          "name": "host-coverage"
         }
       ]
     },

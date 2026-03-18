@@ -1,5 +1,13 @@
 # MMIO++
 
+[![Host Tests](assets/metrics/host-tests.svg)](assets/metrics/summary.md)
+[![Compile-Fail Cases](assets/metrics/compile-fail.svg)](assets/metrics/summary.md)
+[![Target Suites](assets/metrics/target-suites.svg)](assets/metrics/summary.md)
+[![Core Line Coverage](assets/metrics/core-line-coverage.svg)](assets/metrics/summary.md)
+[![Core Branch Coverage](assets/metrics/core-branch-coverage.svg)](assets/metrics/summary.md)
+
+Latest main-branch CI signals are published in [assets/metrics/summary.md](assets/metrics/summary.md).
+
 MMIO++ is a C++ memory-mapped I/O framework for developers who already know the feel of C register macros and want to keep that direct style without keeping the usual hazards.
 
 The goal is not to turn register access into a heavyweight abstraction. The goal is to let register code still look familiar:

@@ -22,8 +22,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Bootstrap Windows toolchain
-        run: ./scripts/bootstrap.ps1
+      - name: Bootstrap host toolchain
+        run: ./scripts/bootstrap.ps1 -InstallPortableFallback
 
       - name: Run host workflow preset
         run: |

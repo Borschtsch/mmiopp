@@ -22,8 +22,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Bootstrap Windows toolchain
-        run: ./scripts/bootstrap.ps1
+      - name: Bootstrap coverage toolchain
+        run: ./scripts/bootstrap.ps1 -InstallCMake -InstallArmToolchain -InstallQemu -InstallNinja
 
       - name: Run QEMU Cortex-R5 coverage workflow preset
         run: |

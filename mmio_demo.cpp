@@ -40,6 +40,8 @@ void demoSequence() {
   spiMr = modeShadow;
 
   const bool isMaster = (spiMr & SPI_MR::MSTR::MASTER);
+  // Zero-valued states still predicate correctly because operator& masks the
+  // field first and only then compares the masked bits with the encoded value.
   const bool releasesChipSelect = (modeShadow & SPI_MR::CSAAT::RELEASE);
   (void)isMaster;
   (void)isSlave;

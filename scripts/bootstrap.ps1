@@ -1,5 +1,10 @@
 param(
-  [switch]$PortableFallbackOnly
+  [switch]$PortableFallbackOnly,
+  [switch]$InstallPortableFallback,
+  [switch]$InstallCMake,
+  [switch]$InstallArmToolchain,
+  [switch]$InstallQemu,
+  [switch]$InstallNinja
 )
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -10,11 +15,9 @@ $toolchainUrl = "https://github.com/brechtsanders/winlibs_mingw/releases/downloa
 $toolchainArchivePath = Join-Path $toolRoot $toolchainArchive
 $toolInstallDir = Join-Path $toolRoot 'winlibs'
 $gxx = Join-Path $toolInstallDir 'mingw64\bin\g++.exe'
-$packages = @(
-  @{ Id = 'Kitware.CMake'; Name = 'CMake' },
-  @{ Id = 'Arm.ArmGnuToolchain'; Name = 'Arm GNU Toolchain' },
-  @{ Id = 'SoftwareFreedomConservancy.QEMU'; Name = 'QEMU' }
-)
+$repoLocalCmake = Join-Path $toolInstallDir 'mingw64\bin\cmake.exe'
+$ninjaInstallDir = Join-Path $toolRoot 'ninja'
+$repoLocalNinja = Join-Path $ninjaInstallDir 'ninja.exe'
 
 function Install-WingetPackage {
   param(
@@ -29,6 +32,93 @@ function Install-WingetPackage {
   if ($LASTEXITCODE -ne 0) {
     throw "winget install failed for $Id"
   }
+}
+
+function Test-ReadableFile {
+  param([string]$Path)
+
+  if (-not (Test-Path $Path -PathType Leaf)) {
+    return $false
+  }
+
+  try {
+    $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    $stream.Dispose()
+    return $true
+  } catch {
+    return $false
+  }
+}
+
+function Resolve-NinjaExecutable {
+  if (Test-ReadableFile $repoLocalNinja) {
+    return $repoLocalNinja
+  }
+
+  $candidates = New-Object System.Collections.Generic.List[string]
+  $command = Get-Command ninja -ErrorAction SilentlyContinue
+  if ($command -and $command.Source) {
+    $candidates.Add($command.Source)
+  }
+
+  $globs = @(
+    'C:/Program Files/Microsoft Visual Studio/*/*/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe',
+    'C:/Program Files/Ninja/ninja.exe',
+    'C:/Program Files (x86)/Ninja/ninja.exe'
+  )
+
+  foreach ($glob in $globs) {
+    foreach ($match in @(Get-ChildItem -Path $glob -ErrorAction SilentlyContinue)) {
+      $candidates.Add($match.FullName)
+    }
+  }
+
+  foreach ($candidate in ($candidates | Select-Object -Unique)) {
+    if (Test-ReadableFile $candidate) {
+      return $candidate
+    }
+  }
+
+  return $null
+}
+
+function Ensure-RepoLocalNinja {
+  $ninjaPath = Resolve-NinjaExecutable
+  if (-not $ninjaPath) {
+    throw 'Ninja executable was not found after installation.'
+  }
+
+  if ((Test-ReadableFile $repoLocalNinja) -and ((Resolve-Path $repoLocalNinja).Path -eq (Resolve-Path $ninjaPath).Path)) {
+    return
+  }
+
+  New-Item -ItemType Directory -Force -Path $ninjaInstallDir | Out-Null
+  Copy-Item -Path $ninjaPath -Destination $repoLocalNinja -Force
+}
+
+function Test-CMakeAvailable {
+  if (Get-Command cmake -ErrorAction SilentlyContinue) {
+    return $true
+  }
+
+  return (Test-Path $repoLocalCmake)
+}
+
+function Test-ArmToolchainAvailable {
+  if (Get-Command arm-none-eabi-g++ -ErrorAction SilentlyContinue) {
+    return $true
+  }
+
+  $candidate = @(Get-ChildItem -Path 'C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/*/bin/arm-none-eabi-g++.exe' -ErrorAction SilentlyContinue)
+  return $candidate.Count -gt 0
+}
+
+function Test-QemuAvailable {
+  if (Get-Command qemu-system-arm -ErrorAction SilentlyContinue) {
+    return $true
+  }
+
+  return (Test-Path 'C:/Program Files/qemu/qemu-system-arm.exe')
 }
 
 function Install-PortableFallback {
@@ -67,7 +157,54 @@ function Install-PortableFallback {
   }
 }
 
-if (-not $PortableFallbackOnly) {
+if ($PortableFallbackOnly) {
+  $InstallPortableFallback = $true
+  $InstallCMake = $false
+  $InstallArmToolchain = $false
+  $InstallQemu = $false
+  $InstallNinja = $false
+} elseif (-not ($InstallPortableFallback -or $InstallCMake -or $InstallArmToolchain -or $InstallQemu -or $InstallNinja)) {
+  $InstallPortableFallback = $true
+  $InstallCMake = $true
+  $InstallArmToolchain = $true
+  $InstallQemu = $true
+  $InstallNinja = $true
+}
+
+$packages = @()
+if ($InstallCMake) {
+  if (Test-CMakeAvailable) {
+    Write-Host 'CMake is already available.'
+  } else {
+    $packages += @{ Id = 'Kitware.CMake'; Name = 'CMake' }
+  }
+}
+
+if ($InstallArmToolchain) {
+  if (Test-ArmToolchainAvailable) {
+    Write-Host 'Arm GNU Toolchain is already available.'
+  } else {
+    $packages += @{ Id = 'Arm.ArmGnuToolchain'; Name = 'Arm GNU Toolchain' }
+  }
+}
+
+if ($InstallQemu) {
+  if (Test-QemuAvailable) {
+    Write-Host 'QEMU is already available.'
+  } else {
+    $packages += @{ Id = 'SoftwareFreedomConservancy.QEMU'; Name = 'QEMU' }
+  }
+}
+
+if ($InstallNinja) {
+  if (Resolve-NinjaExecutable) {
+    Write-Host 'Ninja is already available.'
+  } else {
+    $packages += @{ Id = 'Ninja-build.Ninja'; Name = 'Ninja' }
+  }
+}
+
+if ($packages.Count -gt 0) {
   $winget = Get-Command winget -ErrorAction SilentlyContinue
   if (-not $winget) {
     throw "winget was not found on PATH. Either install winget first or run 'powershell -ExecutionPolicy Bypass -File .\\scripts\\bootstrap.ps1 -PortableFallbackOnly'."
@@ -78,7 +215,13 @@ if (-not $PortableFallbackOnly) {
   }
 }
 
-Install-PortableFallback
+if ($InstallNinja) {
+  Ensure-RepoLocalNinja
+}
+
+if ($InstallPortableFallback) {
+  Install-PortableFallback
+}
 
 Write-Host 'Bootstrap completed.'
 Write-Host 'Host build path: cmake --workflow --preset host'

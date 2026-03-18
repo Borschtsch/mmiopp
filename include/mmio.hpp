@@ -840,6 +840,7 @@ struct Register {
   void operator^=(BitMask<OtherDef, OtherValueType, Usage>) = delete;
 
   // operator& compares a readable RegValue against the local register copy.
+  // Predicates mask first so zero-valued states still compare exactly.
   template <unsigned Usage>
   bool operator&(RegValue<Def, Usage> value) const {
     static_assert((Usage & detail::kValueUsagePredicate) != 0u,
@@ -852,6 +853,7 @@ struct Register {
   bool operator&(RegValue<OtherDef, Usage>) const = delete;
 
   // operator& compares a readable AssignValue against the local register copy.
+  // Predicates mask first so zero-valued states still compare exactly.
   template <unsigned Usage>
   bool operator&(AssignValue<Def, Usage> value) const {
     static_assert((Usage & detail::kValueUsagePredicate) != 0u,
@@ -1105,6 +1107,7 @@ struct Reg {
 };
 
 // operator& compares a readable RegValue against the live register contents.
+// Predicates mask first so zero-valued states still compare exactly.
 template <typename Def, std::uintptr_t Address, unsigned Usage>
 bool operator&(const Reg<Def, Address>&, RegValue<Def, Usage> value) {
   static_assert((Usage & detail::kValueUsagePredicate) != 0u,
@@ -1113,6 +1116,7 @@ bool operator&(const Reg<Def, Address>&, RegValue<Def, Usage> value) {
 }
 
 // operator& compares a readable AssignValue against the live register contents.
+// Predicates mask first so zero-valued states still compare exactly.
 template <typename Def, std::uintptr_t Address, unsigned Usage>
 bool operator&(const Reg<Def, Address>&, AssignValue<Def, Usage> value) {
   static_assert((Usage & detail::kValueUsagePredicate) != 0u,

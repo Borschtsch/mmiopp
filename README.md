@@ -5,6 +5,8 @@
 [![QEMU Cortex-M3](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-m3.yml/badge.svg?branch=main&event=push)](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-m3.yml)
 [![QEMU Cortex-R5](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-r5.yml/badge.svg?branch=main&event=push)](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-r5.yml)
 
+Homepage: https://borschtsch.github.io/mmiocpp/
+
 MMIO++ is a C++ memory-mapped I/O framework for developers who already know the feel of C register macros and want to keep that direct style without keeping the usual hazards.
 
 The goal is not to turn register access into a heavyweight abstraction. The goal is to let register code still look familiar:
@@ -68,7 +70,13 @@ spiMr.set(SPI_MR::MSTR::MASTER | SPI_MR::DLY::value(7));
 spiMr.set<SPI_MR::DLY>(7);
 
 const bool isMaster = spiMr & SPI_MR::MSTR::MASTER;
+const bool releasesChipSelect = spiMr & SPI_MR::CSAAT::RELEASE;
 ```
+
+Zero-valued states still work correctly in predicates. `SPI_MR::CSAAT::RELEASE`
+encodes as zero, but `operator&` masks the field first and then compares the
+masked bits with the encoded value, so the check stays exact instead of
+degenerating into an always-true `raw & 0 == 0`.
 
 The same register definition type also works as a shadow register value:
 

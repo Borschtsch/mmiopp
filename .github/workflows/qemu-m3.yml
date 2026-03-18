@@ -22,8 +22,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Bootstrap Windows toolchain
-        run: ./scripts/bootstrap.ps1
+      - name: Bootstrap QEMU Cortex-M3 toolchain
+        run: ./scripts/bootstrap.ps1 -InstallCMake -InstallArmToolchain -InstallQemu -InstallNinja
 
       - name: Run QEMU Cortex-M3 workflow preset
         run: |

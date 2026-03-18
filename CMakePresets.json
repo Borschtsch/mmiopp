@@ -35,15 +35,15 @@
     {
       "name": "qemu-m3",
       "displayName": "QEMU Cortex-M3 build",
-      "description": "Windows Cortex-M3/QEMU build using the repo-local make tool and the Arm GNU Toolchain.",
-      "generator": "MinGW Makefiles",
+      "description": "Windows Cortex-M3/QEMU build using Ninja and the Arm GNU Toolchain.",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/qemu-m3",
       "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
       "environment": {
         "MMIOCPP_QEMU_SYSTEM_ARM": "C:/Program Files/qemu/qemu-system-arm.exe"
       },
       "cacheVariables": {
-        "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/winlibs/mingw64/bin/mingw32-make.exe",
+        "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/ninja/ninja.exe",
         "MMIOCPP_BUILD_DEMO": "OFF",
         "MMIOCPP_BUILD_TESTS": "OFF",
         "MMIOCPP_BUILD_QEMU_TARGET": "ON",
@@ -53,15 +53,15 @@
     {
       "name": "qemu-r5",
       "displayName": "QEMU Cortex-R5 build",
-      "description": "Windows Cortex-R5/QEMU build using the repo-local make tool and the Arm GNU Toolchain.",
-      "generator": "MinGW Makefiles",
+      "description": "Windows Cortex-R5/QEMU build using Ninja and the Arm GNU Toolchain.",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/qemu-r5",
       "toolchainFile": "${sourceDir}/cmake/toolchains/arm-none-eabi-gcc.cmake",
       "environment": {
         "MMIOCPP_QEMU_SYSTEM_ARM": "C:/Program Files/qemu/qemu-system-arm.exe"
       },
       "cacheVariables": {
-        "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/winlibs/mingw64/bin/mingw32-make.exe",
+        "CMAKE_MAKE_PROGRAM": "${sourceDir}/.local/ninja/ninja.exe",
         "MMIOCPP_BUILD_DEMO": "OFF",
         "MMIOCPP_BUILD_TESTS": "OFF",
         "MMIOCPP_BUILD_QEMU_TARGET": "OFF",

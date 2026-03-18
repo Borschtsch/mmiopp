@@ -102,7 +102,7 @@ MMIO++ is designed to stay zero-overhead in the usual embedded sense:
 
 - `include/mmio.hpp`: core public header only.
 - `examples/`: example register maps and driver code built on top of the core header.
-- `mmio_demo.cpp`: small usage example built through the normal host workflow.
+- `examples/mmio_demo.cpp`: small usage example built through the normal host workflow.
 - `tests/mmio_tests.cpp`: host-side positive API and behavior checks.
 - `tests/compile_fail/*.cpp`: compile-fail coverage for misuse cases.
 - `targets/qemu-cortex-m/`: Cortex-M3 QEMU target harness and runtime tests.

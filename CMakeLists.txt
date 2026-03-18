@@ -92,7 +92,7 @@ function(mmiocpp_copy_gnu_runtime target_name)
 endfunction()
 
 if(MMIOCPP_BUILD_DEMO)
-  add_executable(mmio_demo mmio_demo.cpp)
+  add_executable(mmio_demo examples/mmio_demo.cpp)
   target_link_libraries(mmio_demo PRIVATE mmiocpp::mmiocpp)
   target_include_directories(mmio_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples)
   mmiocpp_enable_coverage(mmio_demo)

@@ -1,0 +1,55 @@
+name: QEMU Cortex-R5
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qemu-r5:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Bootstrap Windows toolchain
+        run: ./scripts/bootstrap.ps1
+
+      - name: Run QEMU Cortex-R5 workflow preset
+        run: |
+          .\scripts\run-ci-workflow.ps1 `
+            -Preset "qemu-r5-test" `
+            -BuildDir "build/qemu-r5"
+
+      - name: Publish QEMU Cortex-R5 test metrics
+        if: always()
+        run: |
+          .\scripts\ci-test-metrics.ps1 `
+            -Preset "qemu-r5-test" `
+            -TestPreset "qemu-r5" `
+            -BuildDir "build/qemu-r5" `
+            -WorkflowDurationSeconds "$env:WORKFLOW_DURATION_SECONDS" `
+            -WorkflowExitCode "$env:WORKFLOW_EXIT_CODE" `
+            -WorkflowLogPath "$env:WORKFLOW_LOG_PATH"
+
+      - name: Upload QEMU Cortex-R5 logs and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-r5-metrics
+          path: |
+            build/qemu-r5/ci-workflow.log
+            build/qemu-r5/Testing/Temporary/LastTest.log
+            build/qemu-r5/Testing/Temporary/CTestCostData.txt
+            build/qemu-r5/ci-metrics.json
+          if-no-files-found: ignore

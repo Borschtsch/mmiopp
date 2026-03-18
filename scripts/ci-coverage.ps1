@@ -84,23 +84,101 @@ function Get-OrCreateCoverageEntry {
   return $CoverageByFile[$SourcePath]
 }
 
-function Merge-CoveragePoint {
+function Merge-LineCoveragePoint {
   param(
     [hashtable]$Points,
-    [string]$Key,
-    [bool]$Covered
+    [int]$LineNumber,
+    [long]$Hits
   )
 
-  if (-not $Points.ContainsKey($Key)) {
-    $Points[$Key] = @{
-      coverable = $true
-      covered = $false
+  $key = [string]$LineNumber
+  if (-not $Points.ContainsKey($key)) {
+    $Points[$key] = [pscustomobject]@{
+      lineNumber = $LineNumber
+      hits = [long]0
     }
   }
 
-  if ($Covered) {
-    $Points[$Key].covered = $true
+  if ($Hits -gt $Points[$key].hits) {
+    $Points[$key].hits = $Hits
   }
+}
+
+function Merge-BranchCoveragePoint {
+  param(
+    [hashtable]$Points,
+    [int]$LineNumber,
+    [int]$BranchIndex,
+    [long]$Hits
+  )
+
+  $key = '{0}.{1}' -f $LineNumber, $BranchIndex
+  if (-not $Points.ContainsKey($key)) {
+    $Points[$key] = [pscustomobject]@{
+      lineNumber = $LineNumber
+      branchIndex = $BranchIndex
+      hits = [long]0
+    }
+  }
+
+  if ($Hits -gt $Points[$key].hits) {
+    $Points[$key].hits = $Hits
+  }
+}
+
+function Get-BranchHits {
+  param([string]$Status)
+
+  if ($Status -notlike 'taken *') {
+    return [long]0
+  }
+
+  $taken = $Status.Substring(6).Trim()
+  if ($taken -match '^([0-9]+)$') {
+    return [long]$Matches[1]
+  }
+
+  if ($taken -match '^([0-9]+(?:\.[0-9]+)?)%') {
+    if ([double]$Matches[1] -gt 0) {
+      return [long]1
+    }
+  }
+
+  return [long]0
+}
+
+function Write-LcovReport {
+  param(
+    [string]$Path,
+    [object[]]$Files
+  )
+
+  $lines = New-Object System.Collections.Generic.List[string]
+  foreach ($file in $Files) {
+    $linePoints = @($file.lines | Sort-Object lineNumber)
+    $branchPoints = @($file.branches | Sort-Object lineNumber, branchIndex)
+
+    $lines.Add("SF:$($file.relativePath)")
+    foreach ($point in $linePoints) {
+      $lines.Add("DA:$($point.lineNumber),$($point.hits)")
+    }
+    $lines.Add("LF:$($linePoints.Count)")
+    $lines.Add("LH:$(@($linePoints | Where-Object { $_.hits -gt 0 }).Count)")
+
+    foreach ($point in $branchPoints) {
+      $lines.Add("BRDA:$($point.lineNumber),0,$($point.branchIndex),$($point.hits)")
+    }
+    $lines.Add("BRF:$($branchPoints.Count)")
+    $lines.Add("BRH:$(@($branchPoints | Where-Object { $_.hits -gt 0 }).Count)")
+    $lines.Add('end_of_record')
+  }
+
+  $content = if ($lines.Count -gt 0) {
+    ($lines -join "`n") + "`n"
+  } else {
+    ''
+  }
+  [System.IO.File]::WriteAllText($Path, $content, [System.Text.UTF8Encoding]::new($false))
 }
 
 $coverageByFile = @{}
@@ -136,9 +214,9 @@ foreach ($gcovFile in $gcovFiles) {
         continue
       }
 
-      $isCovered = $countToken -match '^\d+$' -and [int64]$countToken -gt 0
+      $hits = if ($countToken -match '^\d+$') { [long]$countToken } else { [long]0 }
       $entry = Get-OrCreateCoverageEntry -CoverageByFile $coverageByFile -SourcePath $sourcePath
-      Merge-CoveragePoint -Points $entry.lines -Key ([string]$lineNumber) -Covered $isCovered
+      Merge-LineCoveragePoint -Points $entry.lines -LineNumber $lineNumber -Hits $hits
       continue
     }
 
@@ -148,28 +226,16 @@ foreach ($gcovFile in $gcovFiles) {
       }
 
       $entry = Get-OrCreateCoverageEntry -CoverageByFile $coverageByFile -SourcePath $sourcePath
-      $branchOrdinal = $branchOrdinalByLine[$currentLineNumber]
-      $branchOrdinalByLine[$currentLineNumber] = $branchOrdinal + 1
-      $branchKey = '{0}.{1}' -f $currentLineNumber, $branchOrdinal
-
-      $status = $Matches['status']
-      $isCovered = $false
-      if ($status -like 'taken *') {
-        $taken = $status.Substring(6).Trim()
-        if ($taken -match '^([0-9]+(?:\.[0-9]+)?)%') {
-          $isCovered = [double]$Matches[1] -gt 0
-        } elseif ($taken -match '^([0-9]+)') {
-          $isCovered = [int64]$Matches[1] -gt 0
-        }
-      }
-
-      Merge-CoveragePoint -Points $entry.branches -Key $branchKey -Covered $isCovered
+      $branchIndex = [int]$branchOrdinalByLine[$currentLineNumber]
+      $branchOrdinalByLine[$currentLineNumber] = $branchIndex + 1
+      $branchHits = Get-BranchHits -Status $Matches['status']
+      Merge-BranchCoveragePoint -Points $entry.branches -LineNumber $currentLineNumber -BranchIndex $branchIndex -Hits $branchHits
     }
   }
 }
 
 $normalizedRepoRoot = Get-NormalizedPath $repoRoot
-$repoEntries = @(
+$repoCoverageEntries = @(
   foreach ($sourcePath in ($coverageByFile.Keys | Sort-Object)) {
     if (-not $sourcePath.StartsWith($normalizedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
       continue
@@ -177,22 +243,39 @@ $repoEntries = @(
 
     $entry = $coverageByFile[$sourcePath]
     $relativePath = $sourcePath.Substring($normalizedRepoRoot.Length + 1).Replace('\', '/')
-    $linePoints = @($entry.lines.Values)
-    $branchPoints = @($entry.branches.Values)
-    $lineCovered = @($linePoints | Where-Object { $_.covered }).Count
+    $linePoints = @($entry.lines.Values | Sort-Object lineNumber)
+    $branchPoints = @($entry.branches.Values | Sort-Object lineNumber, branchIndex)
+    $lineCovered = @($linePoints | Where-Object { $_.hits -gt 0 }).Count
     $lineTotal = $linePoints.Count
-    $branchCovered = @($branchPoints | Where-Object { $_.covered }).Count
+    $branchCovered = @($branchPoints | Where-Object { $_.hits -gt 0 }).Count
     $branchTotal = $branchPoints.Count
 
     [pscustomobject]@{
       path = $sourcePath
       relativePath = $relativePath
+      lines = $linePoints
+      branches = $branchPoints
       lineCovered = $lineCovered
       lineTotal = $lineTotal
       linePercent = if ($lineTotal -gt 0) { [math]::Round(($lineCovered * 100.0) / $lineTotal, 2) } else { 0.0 }
       branchCovered = $branchCovered
       branchTotal = $branchTotal
       branchPercent = if ($branchTotal -gt 0) { [math]::Round(($branchCovered * 100.0) / $branchTotal, 2) } else { 0.0 }
+    }
+  }
+)
+
+$repoEntries = @(
+  $repoCoverageEntries | ForEach-Object {
+    [pscustomobject]@{
+      path = $_.path
+      relativePath = $_.relativePath
+      lineCovered = $_.lineCovered
+      lineTotal = $_.lineTotal
+      linePercent = $_.linePercent
+      branchCovered = $_.branchCovered
+      branchTotal = $_.branchTotal
+      branchPercent = $_.branchPercent
     }
   }
 )
@@ -226,9 +309,12 @@ function New-CoverageAggregate {
   }
 }
 
-$coreEntries = @($repoEntries | Where-Object { $_.relativePath -like 'include/*' })
-$exampleEntries = @($repoEntries | Where-Object { $_.relativePath -like 'examples/*' })
-$productEntries = @($repoEntries | Where-Object { $_.relativePath -like 'include/*' -or $_.relativePath -like 'examples/*' })
+$coreCoverageEntries = @($repoCoverageEntries | Where-Object { $_.relativePath -like 'include/*' })
+$exampleCoverageEntries = @($repoCoverageEntries | Where-Object { $_.relativePath -like 'examples/*' })
+$productCoverageEntries = @($repoCoverageEntries | Where-Object { $_.relativePath -like 'include/*' -or $_.relativePath -like 'examples/*' })
+$coreEntries = @($coreCoverageEntries | Select-Object path, relativePath, lineCovered, lineTotal, linePercent, branchCovered, branchTotal, branchPercent)
+$exampleEntries = @($exampleCoverageEntries | Select-Object path, relativePath, lineCovered, lineTotal, linePercent, branchCovered, branchTotal, branchPercent)
+$productEntries = @($productCoverageEntries | Select-Object path, relativePath, lineCovered, lineTotal, linePercent, branchCovered, branchTotal, branchPercent)
 
 $summary = [ordered]@{
   generatedAtUtc = (Get-Date).ToUniversalTime().ToString('o')
@@ -244,7 +330,12 @@ $summary = [ordered]@{
 
 $coverageJsonPath = Join-Path $resolvedOutputDir 'coverage-summary.json'
 $coverageMarkdownPath = Join-Path $resolvedOutputDir 'coverage-summary.md'
+$coreLcovPath = Join-Path $resolvedOutputDir 'coverage-core.info'
+$productLcovPath = Join-Path $resolvedOutputDir 'coverage-product.info'
+
 [System.IO.File]::WriteAllText($coverageJsonPath, ($summary | ConvertTo-Json -Depth 6), [System.Text.UTF8Encoding]::new($false))
+Write-LcovReport -Path $coreLcovPath -Files $coreCoverageEntries
+Write-LcovReport -Path $productLcovPath -Files $productCoverageEntries
 
 $markdown = @"
 # Coverage Summary
@@ -264,6 +355,8 @@ Coverage comes from the instrumented host test build and reflects code reached t
 if ($env:GITHUB_ENV) {
   "COVERAGE_JSON_PATH=$coverageJsonPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
   "COVERAGE_MARKDOWN_PATH=$coverageMarkdownPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+  "COVERAGE_CORE_LCOV_PATH=$coreLcovPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+  "COVERAGE_PRODUCT_LCOV_PATH=$productLcovPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 }
 
 if ($env:GITHUB_STEP_SUMMARY) {
@@ -275,3 +368,5 @@ if ($env:GITHUB_STEP_SUMMARY) {
 }
 
 Write-Host "Coverage summary written to $coverageJsonPath"
+Write-Host "Core LCOV report written to $coreLcovPath"
+Write-Host "Product LCOV report written to $productLcovPath"

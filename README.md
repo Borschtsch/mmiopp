@@ -1,12 +1,11 @@
 # MMIO++
 
-[![Host Tests](assets/metrics/host-tests.svg)](assets/metrics/summary.md)
-[![Compile-Fail Cases](assets/metrics/compile-fail.svg)](assets/metrics/summary.md)
-[![Target Suites](assets/metrics/target-suites.svg)](assets/metrics/summary.md)
-[![Core Line Coverage](assets/metrics/core-line-coverage.svg)](assets/metrics/summary.md)
-[![Core Branch Coverage](assets/metrics/core-branch-coverage.svg)](assets/metrics/summary.md)
+[![codecov](https://codecov.io/gh/Borschtsch/mmiocpp/branch/main/graph/badge.svg?flag=core)](https://codecov.io/gh/Borschtsch/mmiocpp)
+[![Host Suite](https://github.com/Borschtsch/mmiocpp/actions/workflows/host.yml/badge.svg?branch=main&event=push)](https://github.com/Borschtsch/mmiocpp/actions/workflows/host.yml)
+[![QEMU Cortex-M3](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-m3.yml/badge.svg?branch=main&event=push)](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-m3.yml)
+[![QEMU Cortex-R5](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-r5.yml/badge.svg?branch=main&event=push)](https://github.com/Borschtsch/mmiocpp/actions/workflows/qemu-r5.yml)
 
-Latest main-branch CI signals are published in [assets/metrics/summary.md](assets/metrics/summary.md).
+Live suite status comes from GitHub Actions. Detailed counts live in each workflow summary, and core coverage is published through Codecov from the dedicated coverage workflow.
 
 MMIO++ is a C++ memory-mapped I/O framework for developers who already know the feel of C register macros and want to keep that direct style without keeping the usual hazards.
 

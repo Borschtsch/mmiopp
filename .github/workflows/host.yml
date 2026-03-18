@@ -1,0 +1,56 @@
+name: Host Suite
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Bootstrap Windows toolchain
+        run: ./scripts/bootstrap.ps1
+
+      - name: Run host workflow preset
+        run: |
+          .\scripts\run-ci-workflow.ps1 `
+            -Preset "host-test" `
+            -BuildDir "build/host"
+
+      - name: Publish host test metrics
+        if: always()
+        run: |
+          .\scripts\ci-test-metrics.ps1 `
+            -Preset "host-test" `
+            -TestPreset "host" `
+            -BuildDir "build/host" `
+            -WorkflowDurationSeconds "$env:WORKFLOW_DURATION_SECONDS" `
+            -WorkflowExitCode "$env:WORKFLOW_EXIT_CODE" `
+            -WorkflowLogPath "$env:WORKFLOW_LOG_PATH"
+
+      - name: Upload host logs and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-metrics
+          path: |
+            build/host/ci-workflow.log
+            build/host/Testing/Temporary/LastTest.log
+            build/host/Testing/Temporary/CTestCostData.txt
+            build/host/ci-metrics.json
+            build/host/compile_fail/*.log
+          if-no-files-found: ignore

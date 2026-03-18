@@ -1,0 +1,22 @@
+ignore:
+  - "examples/**/*"
+
+coverage:
+  status:
+    project:
+      default: false
+      core:
+        flags:
+          - core
+        paths:
+          - "include/"
+        target: auto
+        threshold: 0%
+    patch:
+      default: false
+
+flags:
+  core:
+    paths:
+      - "include/"
+    carryforward: false

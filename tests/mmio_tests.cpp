@@ -543,6 +543,33 @@ int runBoundRegisterRuntimeChecks() {
 
   clearWindow();
 
+  spiCr.set(SPI_CR::SPIEN::ENABLE);
+  expect(readWord(kHostSpiCrAddress) == bit(0));
+  expect(spiCr & SPI_CR::SPIEN::ENABLE);
+
+  expect(spiCr.get<SPI_CR::SPIEN>() == 1u);
+  spiCr.set<SPI_CR::SWRST::RESET>();
+  expect(readWord(kHostSpiCrAddress) == bit(7));
+
+  spiCr |= SPI_CR::SPIEN::ENABLE;
+  expect(readWord(kHostSpiCrAddress) == (bit(0) | bit(7)));
+
+  SPI_CR snappedControl = spiCr;
+  expect(snappedControl & SPI_CR::SPIEN::ENABLE);
+  expect(snappedControl & SPI_CR::SWRST::RESET);
+  snappedControl.set<SPI_CR::CMD>(2u);
+  spiCr = snappedControl;
+  expect(readWord(kHostSpiCrAddress) == (bit(0) | bit(7) | encode(8, 2)));
+
+  spiCr ^= SPI_CR::SWRST::MASK;
+  expect(readWord(kHostSpiCrAddress) == (bit(0) | encode(8, 2)));
+
+  clearWindow();
+
+  spiMr.set(SPI_MR::PCS::value(1));
+  expect(readWord(kHostSpiMrAddress) == encode(4, 1));
+  expect(spiMr & SPI_MR::PCS::value(1));
+
   spiCr = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET | SPI_CR::CMD::value(2);
   expect(readWord(kHostSpiCrAddress) == (bit(0) | bit(7) | encode(8, 2)));
   expect(spiCr & SPI_CR::SPIEN::ENABLE);
@@ -622,6 +649,44 @@ int runShadowRegisterRuntimeChecks() {
   committedControlShadow = controlShadow;
   expect(committedControlShadow & SPI_CR::SWRST::RESET);
   expect(committedControlShadow.get<SPI_CR::CMD>() == 1u);
+  controlShadow ^= SPI_CR::SWRST::MASK;
+  expect(controlShadow & SPI_CR::SWRST::IDLE);
+  controlShadow ^= SPI_CR::SWRST::MASK;
+  expect(controlShadow & SPI_CR::SWRST::RESET);
+
+  SPI_CR encodedControlShadow;
+  encodedControlShadow.set<SPI_CR::SPIEN::ENABLE>();
+  expect(encodedControlShadow & SPI_CR::SPIEN::ENABLE);
+
+  SPI_MR reverseMixedModeShadow = SPI_MR::PCS::value(1) | SPI_MR::MSTR::MASTER;
+  expect(reverseMixedModeShadow & SPI_MR::MSTR::MASTER);
+  expect(reverseMixedModeShadow.get<SPI_MR::PCS>() == 1u);
+
+  const auto combinedControlMask = SPI_CR::SPIEN::MASK | SPI_CR::SWRST::MASK;
+  SPI_CR composedControlShadow = SPI_CR::SPIEN::ENABLE | SPI_CR::SWRST::RESET;
+  expect(composedControlShadow & SPI_CR::SPIEN::ENABLE);
+  expect(composedControlShadow & SPI_CR::SWRST::RESET);
+  composedControlShadow &= ~combinedControlMask;
+  expect(composedControlShadow & SPI_CR::SPIEN::DISABLE);
+  expect(composedControlShadow & SPI_CR::SWRST::IDLE);
+
+  SPI_MR composedModeShadow = SPI_MR::MSTR::MASTER | SPI_MR::PCS::value(2) | SPI_MR::DLY::value(7);
+  expect(composedModeShadow & SPI_MR::MSTR::MASTER);
+  expect(composedModeShadow.get<SPI_MR::PCS>() == 2u);
+  expect(static_cast<std::uint32_t>(composedModeShadow.get<SPI_MR::DLY>()) == 7u);
+
+  stm32f429::spi::CR2 interruptShadow =
+      stm32f429::spi::CR2::TXEIE::ENABLED | stm32f429::spi::CR2::ERRIE::ENABLED;
+  const auto primaryInterruptMask = (interruptShadow & stm32f429::spi::CR2::TXEIE::ENABLED)
+                                      ? stm32f429::spi::CR2::TXEIE::MASK
+                                      : stm32f429::spi::CR2::ERRIE::MASK;
+  const auto secondaryInterruptMask = (interruptShadow & stm32f429::spi::CR2::ERRIE::ENABLED)
+                                        ? stm32f429::spi::CR2::ERRIE::MASK
+                                        : stm32f429::spi::CR2::TXEIE::MASK;
+  interruptShadow &= ~(primaryInterruptMask | secondaryInterruptMask);
+  expect(interruptShadow & stm32f429::spi::CR2::TXEIE::DISABLED);
+  expect(interruptShadow & stm32f429::spi::CR2::ERRIE::DISABLED);
+
 
   modeShadow.set(SPI_MR::MSTR::MASTER | SPI_MR::PCS::value(2) | SPI_MR::DLY::value(7));
   modeShadow &= ~SPI_MR::CSAAT::MASK;

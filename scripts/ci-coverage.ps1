@@ -127,17 +127,22 @@ if ($gcdaFiles.Count -eq 0) {
   throw 'No .gcda files were found. Run the coverage-instrumented tests before collecting coverage.'
 }
 
-Push-Location $gcovOutputDir
-try {
-  foreach ($gcdaFile in $gcdaFiles) {
-    & $gcovExe -b -c -l -p $gcdaFile 2>&1 | Out-Null
+$gcovRunIndex = 0
+foreach ($gcdaFile in $gcdaFiles) {
+  ++$gcovRunIndex
+  $gcovRunOutputDir = Join-Path $gcovOutputDir ('run-{0:D4}' -f $gcovRunIndex)
+  New-Item -ItemType Directory -Force -Path $gcovRunOutputDir | Out-Null
+
+  Push-Location $gcovRunOutputDir
+  try {
+    & $gcovExe -b -c $gcdaFile 2>&1 | Out-Null
+  } finally {
+    Pop-Location
   }
-} finally {
-  Pop-Location
 }
 
 $gcovFiles = @(
-  Get-ChildItem -Path $gcovOutputDir -Filter *.gcov -ErrorAction SilentlyContinue |
+  Get-ChildItem -Path $gcovOutputDir -Recurse -Filter *.gcov -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty FullName
 )
 if ($gcovFiles.Count -eq 0) {

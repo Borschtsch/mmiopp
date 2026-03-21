@@ -449,18 +449,13 @@ constexpr AssignValue<Def, (LeftUsage & RightUsage)> operator|(
       static_cast<ValueType>(lhs.mask | rhs.mask));
 }
 
-// This overload promotes an AssignValue|RegValue composition into AssignValue.
+// This overload preserves the reversed operand order by reusing the same
+// mixed-composition implementation.
 template <typename Def, unsigned LeftUsage, unsigned RightUsage>
 constexpr AssignValue<Def, (LeftUsage & RightUsage)> operator|(
     AssignValue<Def, LeftUsage> lhs,
     RegValue<Def, RightUsage> rhs) noexcept {
-  // ValueType names the raw storage width without repeating the dependent type.
-  using ValueType = typename Def::ValueType;
-
-  // The resulting assign value carries the union of encoded bits and masks.
-  return AssignValue<Def, (LeftUsage & RightUsage)>(
-      static_cast<ValueType>(lhs.value | rhs.value),
-      static_cast<ValueType>(lhs.mask | rhs.mask));
+  return rhs | lhs;
 }
 
 // IsEncodedValue identifies the framework's two encoded-value wrapper types.
